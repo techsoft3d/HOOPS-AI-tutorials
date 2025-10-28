@@ -8,6 +8,7 @@ Tech Soft 3D tutorials of python CAD framework for machine learning development.
 This repository provides a collection of tutorial materials designed to help users learn and apply the HOOPS AI library.
 
 Developed in Python, it features Jupyter notebooks that guide users through practical use cases and workflows.
+
 ---
 
 ## Dependency
