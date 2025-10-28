@@ -3,7 +3,9 @@
 
 # Ignore top-level 'packages' directory and its contents
 /packages/
-/packages.zip
+# But keep the README.md file
+!/packages/README.md
+
 
 # Ignore 'out' directories anywhere in the repo
 **/out/
