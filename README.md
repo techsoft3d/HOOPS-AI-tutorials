@@ -23,7 +23,7 @@ Ask your TECH SOFT 3D contact to give you acces to HOOPS AI 1.0 preview.
 
 Download the input data for the notebooks
 ### Fetch required binaries - Require password
-Go to: https://transfer.techsoft3d.com/link/N9XIqOkPXpP7Dev2uKd6FE (update link) - 
+Go to: https://transfer.techsoft3d.com/link/pfyUqRv20oQ7pcccMfhfxh 
 
 ### Activate the development environment
 Open a cmd in the location of this repo. If HOOPS AI is installed, then activate the environment of you choice (cpu or gpu):
