@@ -22,7 +22,7 @@ Ask your TECH SOFT 3D contact to give you acces to HOOPS AI 1.0 preview.
 ## Running the Notebooks
 
 Download the input data for the notebooks
-### Fetch required binaries - Require password
+### Fetch test files for the tutorials - Require password to be received by email
 Go to: https://transfer.techsoft3d.com/link/pfyUqRv20oQ7pcccMfhfxh 
 
 ### Activate the development environment
