@@ -2,7 +2,7 @@
 *.zip
 
 # Ignore top-level 'packages' directory and its contents
-/packages/
+/packages/*
 # But keep the README.md file
 !/packages/README.md
 
