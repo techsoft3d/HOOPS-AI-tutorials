@@ -10,7 +10,7 @@ This repository provides a collection of tutorial materials designed to help use
 Developed in Python, it features Jupyter notebooks that guide users through practical use cases and workflows.
 ---
 
-# Dependency
+## Dependency
 
 🪪 1. Get Access first!
 
@@ -18,9 +18,13 @@ Ask your TECH SOFT 3D contact to give you acces to HOOPS AI 1.0 preview.
 
 
 
-### Running the Notebooks
+## Running the Notebooks
 
-Download the input data for the notebooks see packages/README.md
+Download the input data for the notebooks
+### Fetch required binaries - Require password
+Go to: https://transfer.techsoft3d.com/link/N9XIqOkPXpP7Dev2uKd6FE (update link) - 
+
+### Activate the development environment
 Open a cmd in the location of this repo. If HOOPS AI is installed, then activate the environment of you choice (cpu or gpu):
 
 ```bash
