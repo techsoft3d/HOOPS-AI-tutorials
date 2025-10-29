@@ -290,30 +290,30 @@ After computation, boundary points are trimmed (hence $[1:-1, 1:-1]$ indexing).
 For each edge $e_i \in \mathcal{E}$:
 
 1. **Curve Type** $\kappa(e_i)$: Categorical classification (line, circle, spline, etc.)
-   $$
-   \kappa: \mathcal{E} \rightarrow \mathbb{Z}^+
-   $$
+$$
+\kappa: \mathcal{E} \rightarrow \mathbb{Z}^+
+$$
 
 2. **Edge Length** $\ell(e_i)$: Arc length of the curve
-   $$
-   \ell(e_i) = \int_{0}^{1} \left\| \frac{d\mathbf{C}(t)}{dt} \right\| dt
-   $$
+$$
+\ell(e_i) = \int_{0}^{1} \left\| \frac{d\mathbf{C}(t)}{dt} \right\| dt
+$$
    where $\mathbf{C}(t)$ is the curve parameterization.
 
 3. **Dihedral Angle** $\theta(e_i)$: Angle between adjacent face normals
-   $$
-   \theta(e_i) = \arccos(\mathbf{n}_1 \cdot \mathbf{n}_2)
-   $$
+$$
+\theta(e_i) = \arccos(\mathbf{n}_1 \cdot \mathbf{n}_2)
+$$
    where $\mathbf{n}_1, \mathbf{n}_2$ are unit normals of adjacent faces.
 
 4. **Convexity** $\chi(e_i) \in \{-1, 0, 1\}$:
-   $$
-   \chi(e_i) = \begin{cases}
-   1 & \text{if convex} \\
-   0 & \text{if smooth} \\
-   -1 & \text{if concave}
-   \end{cases}
-   $$
+$$
+\chi(e_i) = \begin{cases}
+1 & \text{if convex} \\
+0 & \text{if smooth} \\
+-1 & \text{if concave}
+\end{cases}
+$$
 
 **Storage:**
 - **Arrays:** `edge_types`, `edge_lengths`, `edge_dihedral_angles`, `edge_convexities`
@@ -494,29 +494,29 @@ Pad with $-1$ if path is shorter.
 **Mathematical Formulation:**
 
 1. **Sample Points:** For each face $f_i$, sample $P$ points uniformly:
-   $$
-   \mathcal{P}_i = \{\mathbf{p}_1^i, \mathbf{p}_2^i, \ldots, \mathbf{p}_P^i\} \subset \mathbb{R}^3
-   $$
+$$
+\mathcal{P}_i = \{\mathbf{p}_1^i, \mathbf{p}_2^i, \ldots, \mathbf{p}_P^i\} \subset \mathbb{R}^3
+$$
 
 2. **Compute Distances:** For faces $f_i$ and $f_j$, compute all pairwise distances:
-   $$
-   d_{ij}^{mn} = \|\mathbf{p}_m^i - \mathbf{p}_n^j\|_2, \quad m,n = 1,\ldots,P
-   $$
+$$
+d_{ij}^{mn} = \|\mathbf{p}_m^i - \mathbf{p}_n^j\|_2, \quad m,n = 1,\ldots,P
+$$
 
 3. **Normalize by Diagonal:** Let $D$ be the bounding box diagonal:
-   $$
-   D = \|\mathbf{b}_{\max} - \mathbf{b}_{\min}\|_2
-   $$
+$$
+D = \|\mathbf{b}_{\max} - \mathbf{b}_{\min}\|_2
+$$
    
    Normalized distances:
-   $$
-   \tilde{d}_{ij}^{mn} = \frac{d_{ij}^{mn}}{D}
-   $$
+$$
+\tilde{d}_{ij}^{mn} = \frac{d_{ij}^{mn}}{D}
+$$
 
 4. **Build Histogram:** Bin the normalized distances into $B$ bins over $[0,1]$:
-   $$
-   H_{ij}[b] = \frac{1}{P^2} \sum_{m=1}^P \sum_{n=1}^P \mathbb{1}\left[\frac{b}{B} \leq \tilde{d}_{ij}^{mn} < \frac{b+1}{B}\right]
-   $$
+$$
+H_{ij}[b] = \frac{1}{P^2} \sum_{m=1}^P \sum_{n=1}^P \mathbb{1}\left[\frac{b}{B} \leq \tilde{d}_{ij}^{mn} < \frac{b+1}{B}\right]
+$$
 
 Result: $\mathbf{H} \in \mathbb{R}^{N_f \times N_f \times B}$ where $H_{ij}$ is the distance histogram between faces $i$ and $j$.
 
@@ -543,26 +543,26 @@ Result: $\mathbf{H} \in \mathbb{R}^{N_f \times N_f \times B}$ where $H_{ij}$ is 
 **Mathematical Formulation:**
 
 1. **Sample Normals:** For each face $f_i$, sample $P$ normal vectors:
-   $$
-   \mathcal{N}_i = \{\mathbf{n}_1^i, \mathbf{n}_2^i, \ldots, \mathbf{n}_P^i\} \subset \mathbb{S}^2
-   $$
+$$
+\mathcal{N}_i = \{\mathbf{n}_1^i, \mathbf{n}_2^i, \ldots, \mathbf{n}_P^i\} \subset \mathbb{S}^2
+$$
 
 2. **Compute Angles:** For faces $f_i$ and $f_j$, compute all pairwise angles:
-   $$
-   \theta_{ij}^{mn} = \arccos(\mathbf{n}_m^i \cdot \mathbf{n}_n^j), \quad m,n = 1,\ldots,P
-   $$
+$$
+\theta_{ij}^{mn} = \arccos(\mathbf{n}_m^i \cdot \mathbf{n}_n^j), \quad m,n = 1,\ldots,P
+$$
    
    Clamping: $\mathbf{n}_m^i \cdot \mathbf{n}_n^j \in [-1, 1]$ to avoid numerical issues.
 
 3. **Normalize to [0,1]:** 
-   $$
-   \tilde{\theta}_{ij}^{mn} = \frac{\theta_{ij}^{mn}}{\pi}
-   $$
+$$
+\tilde{\theta}_{ij}^{mn} = \frac{\theta_{ij}^{mn}}{\pi}
+$$
 
 4. **Build Histogram:** Bin the normalized angles into $B$ bins:
-   $$
-   H_{ij}^{\theta}[b] = \frac{1}{P^2} \sum_{m=1}^P \sum_{n=1}^P \mathbb{1}\left[\frac{b}{B} \leq \tilde{\theta}_{ij}^{mn} < \frac{b+1}{B}\right]
-   $$
+$$
+H_{ij}^{\theta}[b] = \frac{1}{P^2} \sum_{m=1}^P \sum_{n=1}^P \mathbb{1}\left[\frac{b}{B} \leq \tilde{\theta}_{ij}^{mn} < \frac{b+1}{B}\right]
+$$
 
 Result: $\mathbf{H}^{\theta} \in \mathbb{R}^{N_f \times N_f \times B}$ where $H_{ij}^{\theta}$ is the angle histogram between faces $i$ and $j$.
 
