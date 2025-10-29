@@ -214,21 +214,21 @@ For each face $f_i \in \mathcal{F}$:
 
 1. **Surface Type** $\tau(f_i)$: Categorical classification (plane, cylinder, sphere, etc.)
 
-   $$
-   \tau: \mathcal{F} \rightarrow \mathbb{Z}^+
-   $$
+$$
+\tau: \mathcal{F} \rightarrow \mathbb{Z}^+
+$$
 
 2. **Face Area** $A(f_i)$: Surface integral over the face
 
-   $$
-   A(f_i) = \iint_{S_i} dS
-   $$
+$$
+A(f_i) = \iint_{S_i} dS
+$$
    
 3. **Loop Count** $L(f_i)$: Number of boundary loops (including holes)
 
-   $$
-   L(f_i) = |\{\text{loops in } f_i\}|
-   $$
+$$
+L(f_i) = |\{\text{loops in } f_i\}|
+$$
 
 **Storage:**
 - **Arrays:** `face_types`, `face_areas`, `face_loops`
