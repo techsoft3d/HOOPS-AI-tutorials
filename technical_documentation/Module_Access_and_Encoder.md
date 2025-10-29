@@ -494,26 +494,31 @@ Pad with $-1$ if path is shorter.
 **Mathematical Formulation:**
 
 1. **Sample Points:** For each face $f_i$, sample $P$ points uniformly:
+
 $$
 \mathcal{P}_i = \{\mathbf{p}_1^i, \mathbf{p}_2^i, \ldots, \mathbf{p}_P^i\} \subset \mathbb{R}^3
 $$
 
 2. **Compute Distances:** For faces $f_i$ and $f_j$, compute all pairwise distances:
+
 $$
 d_{ij}^{mn} = \|\mathbf{p}_m^i - \mathbf{p}_n^j\|_2, \quad m,n = 1,\ldots,P
 $$
 
 3. **Normalize by Diagonal:** Let $D$ be the bounding box diagonal:
+
 $$
 D = \|\mathbf{b}_{\max} - \mathbf{b}_{\min}\|_2
 $$
    
-   Normalized distances:
+Normalized distances:
+
 $$
 \tilde{d}_{ij}^{mn} = \frac{d_{ij}^{mn}}{D}
 $$
 
 4. **Build Histogram:** Bin the normalized distances into $B$ bins over $[0,1]$:
+
 $$
 H_{ij}[b] = \frac{1}{P^2} \sum_{m=1}^P \sum_{n=1}^P \mathbb{1}\left[\frac{b}{B} \leq \tilde{d}_{ij}^{mn} < \frac{b+1}{B}\right]
 $$
@@ -543,23 +548,27 @@ Result: $\mathbf{H} \in \mathbb{R}^{N_f \times N_f \times B}$ where $H_{ij}$ is 
 **Mathematical Formulation:**
 
 1. **Sample Normals:** For each face $f_i$, sample $P$ normal vectors:
+
 $$
 \mathcal{N}_i = \{\mathbf{n}_1^i, \mathbf{n}_2^i, \ldots, \mathbf{n}_P^i\} \subset \mathbb{S}^2
 $$
 
 2. **Compute Angles:** For faces $f_i$ and $f_j$, compute all pairwise angles:
+
 $$
 \theta_{ij}^{mn} = \arccos(\mathbf{n}_m^i \cdot \mathbf{n}_n^j), \quad m,n = 1,\ldots,P
 $$
    
-   Clamping: $\mathbf{n}_m^i \cdot \mathbf{n}_n^j \in [-1, 1]$ to avoid numerical issues.
+Clamping: $\mathbf{n}_m^i \cdot \mathbf{n}_n^j \in [-1, 1]$ to avoid numerical issues.
 
 3. **Normalize to [0,1]:** 
+
 $$
 \tilde{\theta}_{ij}^{mn} = \frac{\theta_{ij}^{mn}}{\pi}
 $$
 
 4. **Build Histogram:** Bin the normalized angles into $B$ bins:
+
 $$
 H_{ij}^{\theta}[b] = \frac{1}{P^2} \sum_{m=1}^P \sum_{n=1}^P \mathbb{1}\left[\frac{b}{B} \leq \tilde{\theta}_{ij}^{mn} < \frac{b+1}{B}\right]
 $$
