@@ -18,6 +18,7 @@ Developed in Python, it features Jupyter notebooks that guide users through prac
 Ask your TECH SOFT 3D contact to give you acces to HOOPS AI 1.0 preview.
 
 
+Note: Set license in environmental variable before starting up Jupyter.
 
 ## Running the Notebooks
 
