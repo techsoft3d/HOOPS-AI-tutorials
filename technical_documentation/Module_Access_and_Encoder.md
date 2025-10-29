@@ -213,16 +213,19 @@ where $\mathcal{E}$ is the set of edge indices and $N_e$ is the total number of 
 For each face $f_i \in \mathcal{F}$:
 
 1. **Surface Type** $\tau(f_i)$: Categorical classification (plane, cylinder, sphere, etc.)
+
    $$
    \tau: \mathcal{F} \rightarrow \mathbb{Z}^+
    $$
 
 2. **Face Area** $A(f_i)$: Surface integral over the face
+
    $$
    A(f_i) = \iint_{S_i} dS
    $$
    
 3. **Loop Count** $L(f_i)$: Number of boundary loops (including holes)
+
    $$
    L(f_i) = |\{\text{loops in } f_i\}|
    $$
@@ -662,13 +665,6 @@ print("Encoding complete!")
 | $H_{ij}$ | Histogram between faces $i$ and $j$ |
 | $\mathbb{S}^2$ | Unit sphere (surface of unit ball) |
 
----
-
-## References
-
-- **Shape Descriptors:** Based on Osada et al. (2002) "Shape Distributions"
-- **BREP Topology:** Mäntylä, M. (1988) "An Introduction to Solid Modeling"
-- **Graph Algorithms:** NetworkX documentation (shortest paths, adjacency)
 
 ---
 
