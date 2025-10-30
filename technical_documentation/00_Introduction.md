@@ -457,7 +457,7 @@ loader = DatasetLoader(
 loader.split(key="part_category", train=0.7, validation=0.15, test=0.15)
 
 # Step 3: Train model
-from hoops_ai.ml import GraphClassification, FlowTrainer
+from hoops_ai.ml.EXPERIMENTAL import GraphClassification, FlowTrainer
 
 flow_model = GraphClassification(num_classes=10)
 trainer = FlowTrainer(
@@ -474,7 +474,7 @@ best_checkpoint = trainer.train()
 
 ```python
 # Step 1: Initialize inference pipeline
-from hoops_ai.ml import FlowInference
+from hoops_ai.ml.EXPERIMENTAL import FlowInference
 from hoops_ai.cadaccess import HOOPSLoader
 
 cad_loader = HOOPSLoader()
@@ -515,30 +515,6 @@ The `FlowModel` interface ensures that CAD encoding logic is identical between:
 
 ---
 
-## System Requirements
-
-### Minimum Requirements
-- **OS:** Windows 10/11, Linux (Ubuntu 20.04+), macOS 11+
-- **Python:** 3.8 or higher
-- **RAM:** 16 GB (32 GB recommended for large datasets)
-- **Disk:** 100 GB free space (for datasets and models)
-
-### Recommended Hardware
-- **CPU:** 8+ cores (for parallel processing)
-- **GPU:** NVIDIA GPU with CUDA 11.7+ (for ML training)
-- **RAM:** 64 GB+ for processing 10,000+ CAD files
-- **Disk:** SSD for faster I/O during dataset merging
-
-### Software Dependencies
-- **HOOPS Exchange:** Requires valid license (contact Tech Soft 3D)
-- **PyTorch:** 1.13+ with CUDA support for GPU training
-- **Dask:** For parallel array operations during merging
-- **xarray:** For structured array access
-- **pandas:** For metadata management
-- **networkx:** For graph operations
-
----
-
 ## Experimental Features
 
 The following components are marked as **⚠️ EXPERIMENTAL** and may change in future releases:
@@ -552,14 +528,6 @@ The following components are marked as **⚠️ EXPERIMENTAL** and may change in
 These features are production-ready but the APIs may evolve based on user feedback and new ML framework requirements.
 
 ---
-
-## Support and Resources
-
-### Additional Documentation
-- **INSTALLATION.md**: Setup guide with conda environments
-- **COPILOT_INSTRUCTIONS.md**: AI development guidelines
-- **VERSIONING.md**: Package versioning strategy
-- **TEST_LICENSE_GUIDE.md**: License setup for testing
 
 ### Example Notebooks
 Located in `notebooks/`:
@@ -614,33 +582,3 @@ Tech Soft 3D provides wrappers and integration but **does not claim authorship**
 
 ---
 
-## Quick Navigation
-
-### By Role
-- **Data Scientists:** [Flow Module](#flow-module) → [Dataset Module](#dataset-module) → [ML Module](#ml-module)
-- **CAD Developers:** [Access & Encode Module](#access--encode-module) → [Dataset Module](#dataset-module) → [Flow Module](#flow-module)
-- **ML Researchers:** [ML Module](#ml-module) → [FlowModel Architecture](./ML%20Module/FlowModel_Architecture.md) → [Insight Module](#insight-module)
-
-### By Module
-- **Access & Encode Module:** [Module Access & Encoder](./Acces%20and%20Encode%20Modules/Module_Access_and_Encoder.md)
-- **Flow Module:** [Flow Documentation](./Flow%20Module/Flow_Documentation.md) | [Flow Quick Reference](./Flow%20Module/Flow_Quick_Reference.md)
-- **Dataset Module:** [SchemaBuilder](./Dataset%20Module/SchemaBuilder_Documentation.md) | [DataStorage](./Dataset%20Module/DataStorage_Documentation.md) | [DatasetMerger](./Dataset%20Module/DatasetMerger_Documentation.md) | [DatasetExplorer & DatasetLoader](./Dataset%20Module/DatasetExplorer_DatasetLoader_Documentation.md)
-- **ML Module:** [FlowModel Architecture](./ML%20Module/FlowModel_Architecture.md) | [GraphClassification (UV-Net)](./ML%20Module/GraphClassification_UVNet.md) | [GraphNodeClassification (BrepMFR)](./ML%20Module/GraphNodeClassification_BrepMFR.md)
-- **Insight Module:** [Insights & Visualization](./Insight%20Module/Insights_Visualization_Documentation.md)
-
-### By Task
-- **Building Pipelines:** [Flow Module - Flow Documentation](./Flow%20Module/Flow_Documentation.md)
-- **Defining Schemas:** [Dataset Module - SchemaBuilder Documentation](./Dataset%20Module/SchemaBuilder_Documentation.md)
-- **Analyzing Data:** [Dataset Module - DatasetExplorer Documentation](./Dataset%20Module/DatasetExplorer_DatasetLoader_Documentation.md)
-- **Training Models:** [ML Module - FlowModel Architecture](./ML%20Module/FlowModel_Architecture.md) + [GraphClassification](./ML%20Module/GraphClassification_UVNet.md)
-- **Deploying Models:** [ML Module - FlowInference in FlowModel Architecture](./ML%20Module/FlowModel_Architecture.md#flowinference-deployment-pipeline)
-- **Visualization:** [Insight Module - Insights & Visualization](./Insight%20Module/Insights_Visualization_Documentation.md)
-
----
-
-**Ready to build your first CAD ML pipeline?**  
-→ Start with the **[Flow Module Documentation](./Flow%20Module/Flow_Documentation.md)** and follow the complete workflow example!
-
----
-
-*This documentation reflects HOOPS AI as of January 2025. For the latest updates, visit our GitHub repository or documentation portal.*
