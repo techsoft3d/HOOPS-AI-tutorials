@@ -260,6 +260,7 @@ where:
 - $(u_j, v_k)$ are uniformly sampled parameters
 
 The grid points are:
+
 $$
 \{(u_j, v_k) : u_j = \frac{j}{U-1}, v_k = \frac{k}{V-1}, \, j=0\ldots U-1, k=0\ldots V-1\}
 $$
@@ -290,23 +291,29 @@ After computation, boundary points are trimmed (hence $[1:-1, 1:-1]$ indexing).
 For each edge $e_i \in \mathcal{E}$:
 
 1. **Curve Type** $\kappa(e_i)$: Categorical classification (line, circle, spline, etc.)
+
 $$
 \kappa: \mathcal{E} \rightarrow \mathbb{Z}^+
 $$
 
 2. **Edge Length** $\ell(e_i)$: Arc length of the curve
+
 $$
 \ell(e_i) = \int_{0}^{1} \left\| \frac{d\mathbf{C}(t)}{dt} \right\| dt
 $$
-   where $\mathbf{C}(t)$ is the curve parameterization.
+
+    where $\mathbf{C}(t)$ is the curve parameterization.
 
 3. **Dihedral Angle** $\theta(e_i)$: Angle between adjacent face normals
+
 $$
 \theta(e_i) = \arccos(\mathbf{n}_1 \cdot \mathbf{n}_2)
 $$
+
    where $\mathbf{n}_1, \mathbf{n}_2$ are unit normals of adjacent faces.
 
 4. **Convexity** $\chi(e_i) \in \{-1, 0, 1\}$:
+
 $$
 \chi(e_i) = \begin{cases}
 1 & \text{if convex} \\
