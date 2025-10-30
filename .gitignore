@@ -1,0 +1,18 @@
+# ignore all zip files anywhere
+*.zip
+
+# Ignore top-level 'packages' directory and its contents
+/packages/*
+# But keep the README.md file
+!/packages/README.md
+
+
+# Ignore 'out' directories anywhere in the repo
+**/out/
+
+# Ignore Jupyter notebook checkpoints adn python caches everywhere
+**/.ipynb_checkpoints/
+**/__pycache__/
+
+# Ignore training_errors.log files anywhere
+**/training_errors.log
