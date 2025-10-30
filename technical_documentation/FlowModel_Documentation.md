@@ -55,7 +55,7 @@ Per-face classification (e.g., "hole", "pocket", "slot").
 - BrepMFR architecture (CAGD 2024, Zhang et al.)
 - Initialization with Transformer hyperparameters
 - Rich encoding: extended adjacency, histograms
-- **Flow integration with `cadflow` decorators**
+- **Flow integration with `flowtask` decorators**
 - Complete CADSynth-AAG example (162k models)
 - Advanced hyperparameter tuning
 
