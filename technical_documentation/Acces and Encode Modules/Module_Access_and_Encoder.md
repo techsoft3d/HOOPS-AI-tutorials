@@ -130,9 +130,12 @@ Provides access to BREP geometry and topology through the `BrepAccess` interface
 The `BrepEncoder` class computes and persists geometric and topological features from BREP data. It follows a **push-based architecture** where each method:
 
 1. Checks if data already exists in storage
-2. Computes the feature if needed
-3. Saves to storage with schema management
-4. Returns a key reference (or the data itself if no storage)
+2. Ensures the appropriate schema definition exists for the data
+3. Computes the feature if needed
+4. Saves to storage with schema management
+5. Returns `None` (if storage is used) or the computed data (if no storage)
+
+The encoder automatically manages schemas for data organization, creating groups and arrays as needed during the encoding process.
 
 #### Initialization
 
@@ -236,49 +239,46 @@ $$
 - **Dtypes:** `int32`, `float32`, `int32`
 
 **Returns:**
-- With storage: `(List[str], Dict)` - list of keys and type descriptions
-- Without storage: `(List[np.ndarray], Dict)` - arrays and type descriptions
+- With storage: Returns `None` (data is stored with keys: `"face_types"`, `"face_areas"`, `"face_loops"`, and metadata `"descriptions/face_types"`)
+- Without storage: `Tuple[List[np.ndarray], Dict]` - (list of numpy arrays [face_types, face_areas, face_loops], face_types_descr dictionary mapping face type IDs to descriptions)
 
 ---
 
-### push_facegrid(ugrid=5, vgrid=5)
+### push_face_discretization(pointsamples=25)
 
-**Purpose:** Sample structured grids of points and normals on face surfaces using UV parameterization.
+**Purpose:** Sample points and normals on face surfaces using uniform point sampling (rather than structured UV grids).
 
 **Mathematical Formulation:**
 
-For each face $f_i$, create a UV grid:
+For each face $f_i$, sample $P$ points uniformly across the surface:
 
 $$
-\mathbf{P}_{i}^{uv} = \left[\mathbf{S}(u_j, v_k), \mathbf{N}(u_j, v_k), V(u_j, v_k)\right]
+\mathbf{P}_{i} = \left[\mathbf{S}(\mathbf{u}_j), \mathbf{N}(\mathbf{u}_j), V(\mathbf{u}_j)\right]_{j=1}^{P}
 $$
 
 where:
-- $\mathbf{S}: [0,1]^2 \rightarrow \mathbb{R}^3$ is the surface parameterization
-- $\mathbf{N}: [0,1]^2 \rightarrow \mathbb{S}^2$ is the normal field
-- $V: [0,1]^2 \rightarrow \{0,1\}$ is visibility status (inside/outside)
-- $(u_j, v_k)$ are uniformly sampled parameters
+- $\mathbf{S}: \Omega \rightarrow \mathbb{R}^3$ is the surface parameterization
+- $\mathbf{N}: \Omega \rightarrow \mathbb{S}^2$ is the normal field
+- $V: \Omega \rightarrow \{0,1\}$ is visibility status (inside/outside)
+- $\mathbf{u}_j$ are uniformly sampled parameter points across the face
+- $P$ is the number of sample points (default: 25)
 
-The grid points are:
-
-$$
-\{(u_j, v_k) : u_j = \frac{j}{U-1}, v_k = \frac{k}{V-1}, \, j=0\ldots U-1, k=0\ldots V-1\}
-$$
-
-After computation, boundary points are trimmed (hence $[1:-1, 1:-1]$ indexing).
+The sampling uses three methods concatenated along the component axis:
+1. **Point samples**: $(x, y, z)$ coordinates
+2. **Normal samples**: $(n_x, n_y, n_z)$ unit normals
+3. **Inside/outside flags**: visibility indicators
 
 **Storage:**
-- **Array:** `face_uv_grids`
-- **Shape:** `[face, uv_x, uv_y, component]` where component includes (x,y,z) + (nx,ny,nz) + (visibility)
+- **Array:** `face_discretization`
+- **Shape:** `[face, sample, component]` where component includes (x,y,z) + (nx,ny,nz) + (visibility)
 - **Dtype:** `float32`
 
 **Parameters:**
-- `ugrid` (int): Number of samples in U direction (default: 5)
-- `vgrid` (int): Number of samples in V direction (default: 5)
+- `pointsamples` (int): Number of points to sample per face (default: 25)
 
 **Returns:**
-- With storage: `str` - key name `"face_uv_grids"`
-- Without storage: `np.ndarray` of shape `(N_f, ugrid, vgrid, 7)`
+- With storage: `str` - key name `"face_discretization"`
+- Without storage: `np.ndarray` of shape `(N_f, pointsamples, 7)`
 
 ---
 
@@ -328,8 +328,8 @@ $$
 - **Dtypes:** `int32`, `float32`, `float32`, `int32`
 
 **Returns:**
-- With storage: `(List[str], Dict)` - list of keys and type descriptions
-- Without storage: `(List[np.ndarray], Dict)` - arrays and type descriptions
+- With storage: Returns `None` (data is stored with keys: `"edge_types"`, `"edge_lengths"`, `"edge_dihedral_angles"`, `"edge_convexities"`, and metadata `"descriptions/edge_types"`)
+- Without storage: `Tuple[List[np.ndarray], Dict]` - (list of numpy arrays [edge_types, edge_lengths, edge_dihedrals, edge_convexities], edge_type_descrip dictionary mapping edge type IDs to descriptions)
 
 ---
 
@@ -387,17 +387,16 @@ The graph is represented by:
 - Edge list: $\{(s_k, d_k)\}_{k=0}^{|E|-1}$ where $s_k, d_k \in V$
 
 **Storage:**
-- **Group:** `graph`
 - **Arrays:** 
-  - `num_nodes`: scalar count
-  - `edges_source`: source node indices
-  - `edges_destination`: destination node indices
-  - `graph`: nested structure (backward compatibility)
+  - `num_nodes`: scalar count of nodes in the graph
+  - `edges_source`: source node indices for each edge
+  - `edges_destination`: destination node indices for each edge
+  - `graph`: nested structure containing edges dict and num_nodes (for backward compatibility)
 - **Dtypes:** `int32`
 
 **Returns:**
-- With storage: `(str, int, int)` - key name, node count, edge count
-- Without storage: `nx.Graph` - NetworkX graph object
+- With storage: Returns `None` (data is stored with keys: `"num_nodes"`, `"edges_source"`, `"edges_destination"`, and `"graph"`)
+- Without storage: `nx.Graph` - NetworkX graph object with edge attributes
 
 ---
 
@@ -427,7 +426,7 @@ This is computed using the Floyd-Warshall or BFS algorithm via NetworkX's `all_p
 - **Dtype:** `float32`
 
 **Returns:**
-- With storage: `str` - key name `"extended_adjacency"`
+- With storage: Returns `None` (data is stored with key `"extended_adjacency"`)
 - Without storage: `np.ndarray` of shape `(N_f, N_f)`
 
 ---
@@ -450,7 +449,7 @@ $$
 - **Dtype:** `int32`
 
 **Returns:**
-- With storage: `str` - key name `"face_neighborscount"`
+- With storage: Returns `None` (data is stored with key `"face_neighborscount"`)
 - Without storage: `np.ndarray` of shape `(N_f,)`
 
 ---
@@ -487,7 +486,7 @@ Pad with $-1$ if path is shorter.
 - `max_allow_edge_length` (int): Maximum path length to store (default: 16)
 
 **Returns:**
-- With storage: `str` - key name `"face_pair_edges_path"`
+- With storage: Returns `None` (data is stored with key `"face_pair_edges_path"`)
 - Without storage: `np.ndarray` of shape `(N_f, N_f, M)`
 
 ---
@@ -497,6 +496,11 @@ Pad with $-1$ if path is shorter.
 ### push_average_face_pair_distance_histograms(grid=5, num_bins=64)
 
 **Purpose:** Compute normalized histograms of pairwise point-to-point distances between all face pairs (D2 shape descriptor).
+
+**Implementation Notes:**
+- Uses optimized sampling: maximum 25 points per face (or fewer if face has less than 25 points)
+- Employs 2-thread parallel processing for improved performance
+- Processes faces in two chunks to balance memory and computation
 
 **Mathematical Formulation:**
 
@@ -543,7 +547,7 @@ Result: $\mathbf{H} \in \mathbb{R}^{N_f \times N_f \times B}$ where $H_{ij}$ is 
 - `num_bins` (int): Number of histogram bins (default: 64)
 
 **Returns:**
-- With storage: `str` - key name `"d2_distance"`
+- With storage: Returns `None` (data is stored with key `"d2_distance"`)
 - Without storage: `np.ndarray` of shape `(N_f, N_f, num_bins)`
 
 ---
@@ -551,6 +555,11 @@ Result: $\mathbf{H} \in \mathbb{R}^{N_f \times N_f \times B}$ where $H_{ij}$ is 
 ### push_average_face_pair_angle_histograms(grid=5, num_bins=64)
 
 **Purpose:** Compute normalized histograms of pairwise normal-to-normal angles between all face pairs (A3 shape descriptor).
+
+**Implementation Notes:**
+- Uses optimized sampling: maximum 25 normals per face (or fewer if face has less than 25 normals)
+- Employs 2-thread parallel processing for improved performance
+- Processes faces in two chunks to balance memory and computation
 
 **Mathematical Formulation:**
 
@@ -593,7 +602,7 @@ Result: $\mathbf{H}^{\theta} \in \mathbb{R}^{N_f \times N_f \times B}$ where $H_
 - `num_bins` (int): Number of histogram bins (default: 64)
 
 **Returns:**
-- With storage: `str` - key name `"a3_distance"`
+- With storage: Returns `None` (data is stored with key `"a3_distance"`)
 - Without storage: `np.ndarray` of shape `(N_f, N_f, num_bins)`
 
 ---
@@ -625,7 +634,7 @@ encoder.push_face_attributes()
 encoder.push_edge_attributes()
 
 # 5. Extract parameterized grids
-encoder.push_facegrid(ugrid=10, vgrid=10)
+encoder.push_face_discretization(pointsamples=100)
 encoder.push_curvegrid(ugrid=20)
 
 # 6. Extract topology
@@ -671,7 +680,6 @@ print("Encoding complete!")
 | $N_e$ | Number of edges |
 | $f_i$ | Face with index $i$ |
 | $e_i$ | Edge with index $i$ |
-| $\mathbf{S}(u,v)$ | Surface parameterization |
 | $\mathbf{N}(u,v)$ | Normal field |
 | $\mathbf{C}(t)$ | Curve parameterization |
 | $\mathbf{T}(t)$ | Tangent vector |

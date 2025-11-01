@@ -315,18 +315,6 @@ plt.title('Face Area Distribution')
 plt.show()
 ```
 
-#### In-Core Distribution (No Dask)
-
-```python
-# For smaller datasets or when Dask is disabled
-distribution = explorer.create_distribution_incore(
-    key="edge_lengths",
-    group="edges",
-    bins=15
-)
-# Same output structure as create_distribution()
-```
-
 ---
 
 ### Metadata Queries
@@ -381,27 +369,6 @@ scs_path = file_stream['stream_cache_3d'].values[0]
 
 ---
 
-### Cross-Group Queries
-
-```python
-# Join data from multiple groups by file_id_code
-combined_data = explorer.query_cross_group(
-    primary_group="faces",
-    secondary_group="edges",
-    join_strategy='file_id_code'
-)
-
-# Access data from both groups
-face_count_per_file = combined_data.groupby('file_id_code_faces').size()
-edge_count_per_file = combined_data.groupby('file_id_code_edges').size()
-
-print(f"Files: {len(face_count_per_file)}")
-print(f"Average faces per file: {face_count_per_file.mean():.1f}")
-print(f"Average edges per file: {edge_count_per_file.mean():.1f}")
-```
-
----
-
 ### Advanced Features
 
 #### Membership Matrix
@@ -424,26 +391,6 @@ import pandas as pd
 df = pd.DataFrame(matrix, columns=categories)
 df['file_code'] = file_codes
 print(df.head())
-```
-
-
-
-#### Statistical Analysis
-
-```python
-# Get comprehensive statistics for an array
-stats = explorer.get_array_statistics(
-    group_name="faces",
-    array_name="face_areas"
-)
-
-print(f"Mean: {stats['mean']:.2f}")
-print(f"Std Dev: {stats['std']:.2f}")
-print(f"Min: {stats['min']:.2f}")
-print(f"Max: {stats['max']:.2f}")
-print(f"Median: {stats['median']:.2f}")
-print(f"25th percentile: {stats['q25']:.2f}")
-print(f"75th percentile: {stats['q75']:.2f}")
 ```
 
 #### Print Dataset Structure
@@ -596,54 +543,8 @@ The split preserves label co-occurrence patterns.
 
 ---
 
-#### Auto-Discovery of Stratification Keys
-
-```python
-# Discover available keys for stratification
-available_keys = loader.get_available_stratification_keys()
-print(available_keys)
-# Output:
-# {
-#     'faces': ['face_types', 'face_areas'],
-#     'edges': ['edge_types', 'edge_lengths'],
-#     'machining': ['machining_category', 'material_type']
-# }
-
-# Loader can auto-detect group from key
-train_size, val_size, test_size = loader.split(
-    key="material_type",  # No group needed - auto-detected
-    train=0.7,
-    validation=0.15,
-    test=0.15
-)
-```
 
 ---
-
-#### Advanced Splitting Options
-
-```python
-# Split with explicit categories
-loader.split(
-    key="complexity_level",
-    group="faces",
-    categories=[1, 2, 3, 4, 5],  # Explicit category list
-    train=0.6,
-    validation=0.2,
-    test=0.2,
-    random_state=42
-)
-
-# Force reset previous split
-loader.split(
-    key="material_type",
-    group="machining",
-    train=0.8,
-    validation=0.1,
-    test=0.1,
-    force_reset=True  # Discard previous split
-)
-```
 
 ---
 
@@ -720,118 +621,6 @@ for epoch in range(num_epochs):
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
-```
-
-#### Custom Collate Function
-
-```python
-import torch
-import dgl
-
-def custom_collate(batch):
-    """Custom collate for batching DGL graphs"""
-    graphs = [item['graph'] for item in batch]
-    labels = [item['label'] for item in batch]
-    ids = [item['id'] for item in batch]
-    
-    # Batch graphs
-    batched_graph = dgl.batch(graphs)
-    
-    # Stack labels
-    batched_labels = torch.stack([torch.tensor(l) for l in labels])
-    
-    return {
-        'graph': batched_graph,
-        'label': batched_labels,
-        'id': ids
-    }
-
-# Use with DataLoader
-train_torch = train_dataset.to_torch(collate_fn=custom_collate)
-train_loader = DataLoader(train_torch, batch_size=32, shuffle=True)
-```
-
----
-
-
-### Advanced Features
-
-#### Validate Configuration
-
-```python
-# Validate dataset configuration
-validation_info = loader.validate_configuration()
-print(validation_info)
-# Output:
-# {
-#     'merged_store_path': '/path/to/dataset.dataset',
-#     'parquet_file_path': '/path/to/dataset.infoset',
-#     'available_groups': {'faces', 'edges', 'machining'},
-#     'stratification_keys': {...},
-#     'total_files': 100,
-#     'status': 'valid'
-# }
-```
-
-#### Multiple Splits on Same Data
-
-```python
-# Split by complexity
-loader.split(key="complexity_level", train=0.7, validation=0.15, test=0.15)
-train_by_complexity = loader.get_dataset("train")
-
-# Reset and split by material
-loader.reset_split_state()
-loader.split(key="material_type", train=0.7, validation=0.15, test=0.15)
-train_by_material = loader.get_dataset("train")
-
-# Previous split is stored in history
-# Can retrieve by key if needed
-```
-
-#### Diagnose File Code Issues
-
-```python
-# If experiencing file code mapping issues
-loader.diagnose_file_codes_mismatch()
-# Output:
-# === FILE CODES DIAGNOSTIC ===
-# file_codes: type=<class 'numpy.ndarray'>, length=100
-# file_codes range: 0 to 99
-# file_codes sample: [0 1 2 3 4 5 6 7 8 9]
-# 
-# df_info: shape=(100, 8)
-# df_info columns: ['id', 'name', 'description', 'size_cadfile', ...]
-# 
-# ID range in df_info: 0 to 99
-# Matching file codes: 100 out of 100
-# Missing file codes: []
-# === END DIAGNOSTIC ===
-```
-
-#### Remove Bad Samples
-
-```python
-# Get training dataset
-train_dataset = loader.get_dataset("train")
-
-# Identify problematic samples
-bad_indices = []
-for i in range(len(train_dataset)):
-    try:
-        item = train_dataset.get_item(i)
-        # Check for issues
-        if item['graph'].number_of_nodes() == 0:
-            bad_indices.append(i)
-    except Exception as e:
-        print(f"Error loading item {i}: {e}")
-        bad_indices.append(i)
-
-# Remove bad samples
-if bad_indices:
-    print(f"Removing {len(bad_indices)} problematic samples")
-    train_dataset.remove_indices(bad_indices)
-    print(f"New training set size: {len(train_dataset)}")
 ```
 
 ---
@@ -1042,170 +831,6 @@ explorer.close()
 
 ---
 
-### Example 3: Complete ML Training Pipeline (Giving as example for connection to Pytorch)
-
-```python
-import hoops_ai
-from hoops_ai.flowmanager import flowtask
-from hoops_ai.dataset import DatasetLoader
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader
-import pathlib
-
-# Define custom item loader for graph data
-def load_graph_item(graph_file, label_file, data_id):
-    import dgl
-    import numpy as np
-    
-    graphs, _ = dgl.load_graphs(str(graph_file))
-    graph = graphs[0]
-    label = np.load(str(label_file))
-    
-    return {
-        'graph': graph,
-        'label': torch.tensor(label, dtype=torch.long),
-        'id': data_id
-    }
-
-# Initialize loader
-flow_file = pathlib.Path("flow_output/flows/cad_pipeline/cad_pipeline.flow")
-loader = DatasetLoader(
-    merged_store_path=str(flow_file.parent / f"{flow_file.stem}.dataset"),
-    parquet_file_path=str(flow_file.parent / f"{flow_file.stem}.infoset"),
-    item_loader_func=load_graph_item
-)
-
-# Stratified split
-loader.split(
-    key="complexity_level",
-    group="faces",
-    train=0.7,
-    validation=0.15,
-    test=0.15,
-    random_state=42
-)
-
-# Get datasets
-train_dataset = loader.get_dataset("train")
-val_dataset = loader.get_dataset("validation")
-test_dataset = loader.get_dataset("test")
-
-# Custom collate function for DGL graphs
-def collate_graphs(batch):
-    import dgl
-    graphs = [item['graph'] for item in batch]
-    labels = torch.stack([item['label'] for item in batch])
-    batched_graph = dgl.batch(graphs)
-    return {'graph': batched_graph, 'label': labels}
-
-# Create data loaders torch.utils.data.DataLoader
-train_loader = DataLoader(
-    train_dataset.to_torch(collate_fn=collate_graphs),
-    batch_size=32,
-    shuffle=True,
-    num_workers=4
-)
-
-val_loader = DataLoader(
-    val_dataset.to_torch(collate_fn=collate_graphs),
-    batch_size=32,
-    shuffle=False,
-    num_workers=4
-)
-
-# Define model (example GNN)
-class DummySimpleGraphClassifier(nn.Module):
-    def __init__(self, in_feats, hidden_size, num_classes):
-        super().__init__()
-        from dgl.nn.pytorch import GraphConv
-        self.conv1 = GraphConv(in_feats, hidden_size)
-        self.conv2 = GraphConv(hidden_size, hidden_size)
-        self.classify = nn.Linear(hidden_size, num_classes)
-        
-    def forward(self, g, features):
-        import dgl
-        h = torch.relu(self.conv1(g, features))
-        h = torch.relu(self.conv2(g, h))
-        g.ndata['h'] = h
-        hg = dgl.mean_nodes(g, 'h')
-        return self.classify(hg)
-
-# Initialize model, optimizer, criterion
-model = DummySimpleGraphClassifier(in_feats=64, hidden_size=128, num_classes=5)
-optimizer = optim.Adam(model.parameters(), lr=0.001)
-criterion = nn.CrossEntropyLoss()
-
-# Training loop
-num_epochs = 50
-best_val_acc = 0.0
-
-for epoch in range(num_epochs):
-    # Training
-    model.train()
-    train_loss = 0.0
-    train_correct = 0
-    train_total = 0
-    
-    for batch in train_loader:
-        graph = batch['graph']
-        labels = batch['label']
-        features = graph.ndata['feat']
-        
-        optimizer.zero_grad()
-        outputs = model(graph, features)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
-        
-        train_loss += loss.item()
-        _, predicted = torch.max(outputs, 1)
-        train_correct += (predicted == labels).sum().item()
-        train_total += labels.size(0)
-    
-    train_acc = train_correct / train_total
-    
-    # Validation
-    model.eval()
-    val_loss = 0.0
-    val_correct = 0
-    val_total = 0
-    
-    with torch.no_grad():
-        for batch in val_loader:
-            graph = batch['graph']
-            labels = batch['label']
-            features = graph.ndata['feat']
-            
-            outputs = model(graph, features)
-            loss = criterion(outputs, labels)
-            
-            val_loss += loss.item()
-            _, predicted = torch.max(outputs, 1)
-            val_correct += (predicted == labels).sum().item()
-            val_total += labels.size(0)
-    
-    val_acc = val_correct / val_total
-    
-    print(f"Epoch {epoch+1}/{num_epochs}:")
-    print(f"  Train Loss: {train_loss/len(train_loader):.4f}, Acc: {train_acc:.4f}")
-    print(f"  Val Loss: {val_loss/len(val_loader):.4f}, Acc: {val_acc:.4f}")
-    
-    # Save best model
-    if val_acc > best_val_acc:
-        best_val_acc = val_acc
-        torch.save(model.state_dict(), 'best_model.pth')
-        print(f"  ✓ New best model saved (Val Acc: {val_acc:.4f})")
-
-print(f"\nTraining complete! Best validation accuracy: {best_val_acc:.4f}")
-
-# Cleanup
-loader.close_resources()
-```
-
----
-
 ## Best Practices
 
 ### For DatasetExplorer
@@ -1227,51 +852,22 @@ loader.close_resources()
        face_data = explorer.get_group_data('faces')
    ```
 
-4. **Use in-core operations for small datasets**: Faster and simpler than Dask
-   ```python
-   dist = explorer.create_distribution_incore(key="face_areas", group="faces")
-   ```
-
-5. **Print table of contents early**: Understand dataset structure before analysis
+4. **Print table of contents early**: Understand dataset structure before analysis
    ```python
    explorer.print_table_of_contents()
    ```
 
 ### For DatasetLoader
 
-1. **Validate configuration**: Check dataset before splitting
-   ```python
-   config = loader.validate_configuration()
-   print(config)
-   ```
 
-2. **Use auto-discovery for groups**: Let loader find the group for your key
-   ```python
-   loader.split(key="material_type")  # No need to specify group
-   ```
-
-3. **Set random_state**: Ensure reproducible splits
+1. **Set random_state**: Ensure reproducible splits
    ```python
    loader.split(key="label", random_state=42)
    ```
 
-4. **Clean up resources**: Close explorer and clear caches
+2. **Clean up resources**: Close explorer and clear caches
    ```python
    loader.close_resources(clear_split_history=True)
-   ```
-
-5. **Custom item loaders for performance**: Preprocess during loading
-   ```python
-   def optimized_loader(graph_file, label_file, data_id):
-       # Load and preprocess
-       graph = load_and_preprocess(graph_file)
-       return {'graph': graph, 'label': label}
-   ```
-
-6. **Remove bad samples early**: Validate and clean before training
-   ```python
-   bad_indices = validate_dataset(train_dataset)
-   train_dataset.remove_indices(bad_indices)
    ```
 
 ---
@@ -1297,51 +893,6 @@ loader.close_resources()
 - Custom loaders should be memory-efficient
 - Use PyTorch DataLoader `num_workers` for parallel loading
 
-### Optimization Tips
-
-1. **Batch operations**: Use Dask for parallel array operations
-   ```python
-   # Good: Uses Dask parallelism
-   dist = explorer.create_distribution(key="face_areas", group="faces")
-   
-   # Avoid: Sequential per-file operations
-   for file_code in all_files:
-       data = explorer.file_dataset(file_code, "faces")  # Slow
-   ```
-
-2. **Chunk sizes**: Optimize Zarr chunk sizes during merging
-   ```python
-   # During DatasetMerger.merge_data()
-   merger.merge_data(
-       face_chunk=500_000,  # Tune based on typical face counts
-       edge_chunk=500_000
-   )
-   ```
-
-3. **Filter early**: Apply filters before loading full data
-   ```python
-   # Good: Filter on file_id_code first
-   file_codes = explorer.get_file_list(group="faces", where=condition)
-   for code in file_codes:
-       data = explorer.file_dataset(code, "faces")
-   
-   # Avoid: Load all, then filter
-   all_faces = explorer.get_group_data("faces")  # Huge
-   filtered = all_faces.where(condition)  # Memory intensive
-   ```
-
-4. **Stratification caching**: DatasetLoader caches split history
-   ```python
-   # First split: Computes membership matrix
-   loader.split(key="label")
-   
-   # Reset and split by different key
-   loader.reset_split_state()
-   loader.split(key="material")  # Recomputes matrix
-   
-   # Switch back: Uses cached result
-   loader.split(key="label")  # Instant (uses history)
-   ```
 
 ### Parallel Processing
 
@@ -1354,73 +905,6 @@ loader.close_resources()
 - PyTorch DataLoader `num_workers`: Controls loading parallelism
 - Set based on CPU cores: `num_workers = min(4, cpu_count())`
 - Use `pin_memory=True` for GPU training
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-#### 1. File Not Found Errors
-```python
-# Symptom: FileNotFoundError when loading dataset
-# Solution: Check file paths
-loader = DatasetLoader(
-    merged_store_path="path/to/dataset.dataset",  # Must exist
-    parquet_file_path="path/to/dataset.infoset"   # Must exist
-)
-
-# Verify files exist
-import pathlib
-assert pathlib.Path("path/to/dataset.dataset").exists()
-```
-
-#### 2. Group Not Found
-```python
-# Symptom: Group 'xyz' not found
-# Solution: Check available groups
-explorer = DatasetExplorer(flow_output_file="flow.flow")
-print(explorer.available_groups())
-
-# Use correct group name
-data = explorer.get_group_data("faces")  # Correct
-```
-
-#### 3. Key Not in Group
-```python
-# Symptom: Key 'label' not found in group 'faces'
-# Solution: Check available arrays
-print(explorer.available_arrays("faces"))
-
-# Or let loader auto-discover
-loader.split(key="material_type")  # Auto-finds correct group
-```
-
-#### 4. Stratification Fails
-```python
-# Symptom: ValueError: not enough samples in class
-# Solution: Check class distribution
-matrix, codes, categories = explorer.build_membership_matrix(
-    group="faces",
-    key="complexity_level"
-)
-print(f"Samples per category: {matrix.sum(axis=0)}")
-
-# Adjust split ratios if needed
-loader.split(key="complexity_level", train=0.9, validation=0.05, test=0.05)
-```
-
-#### 5. File Code Mismatch
-```python
-# Symptom: File codes don't match IDs
-# Solution: Run diagnostic
-loader.diagnose_file_codes_mismatch()
-
-# Check file_id_code mapping
-explorer = DatasetExplorer(flow_output_file="flow.flow")
-file_info = explorer.get_file_info_all()
-print(file_info[['id', 'name']].head())
-```
 
 ---
 

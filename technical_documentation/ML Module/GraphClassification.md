@@ -1,8 +1,8 @@
-# GraphClassification (UV-Net) Documentation
+# GraphClassification - Graph-Level Classifier Documentation
 
 ## Overview
 
-`GraphClassification` is a HOOPS AI wrapper around the **UV-Net** architecture for CAD model classification tasks. This implementation encapsulates the complete pipeline from CAD file to graph-level predictions, following the `FlowModel` interface for seamless integration with HOOPS AI's training and inference infrastructure.
+`GraphClassification` is a HOOPS AI implementation of a graph-level classification model for CAD data. This implementation encapsulates the complete pipeline from CAD file to graph-level predictions, following the `FlowModel` interface for seamless integration with HOOPS AI's training and inference infrastructure.
 
 **Use Cases:**
 - Part type classification (e.g., bearings, bolts, brackets)
@@ -10,95 +10,50 @@
 - Design style recognition
 - Manufacturing process selection
 
+**Note:** This implementation is based on a third-party architecture. For complete attribution and citation information, see [Acknowledgements.md](./Acknowledgements.md).
+
 ---
 
 ## Table of Contents
 
 1. [Model Architecture](#model-architecture)
-2. [Citation and Licensing](#citation-and-licensing)
-3. [Initialization](#initialization)
-4. [CAD Encoding Strategy](#cad-encoding-strategy)
-5. [Integration with Flow Tasks](#integration-with-flow-tasks)
-6. [Complete Example: FABWAVE Dataset](#complete-example-fabwave-dataset)
-7. [Training Workflow](#training-workflow)
-8. [Inference Workflow](#inference-workflow)
-9. [Hyperparameter Tuning](#hyperparameter-tuning)
+2. [Initialization](#initialization)
+3. [CAD Encoding Strategy](#cad-encoding-strategy)
+4. [Integration with Flow Tasks](#integration-with-flow-tasks)
+5. [Complete Example: FABWAVE Dataset](#complete-example-fabwave-dataset)
+6. [Training Workflow](#training-workflow)
+7. [Inference Workflow](#inference-workflow)
+8. [Hyperparameter Tuning](#hyperparameter-tuning)
 
 ---
 
 ## Model Architecture
 
-### Original Paper
+### Overview
 
-> **Jayaraman, P. K., Sanghi, A., Lambourne, J. G., Willis, K. D. D., Davies, T., Shayani, H., & Morris, N. (2021).**  
-> UV-Net: Learning from Boundary Representations.  
-> In *Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)* (pp. 11703-11712).  
-> https://doi.org/10.1109/CVPR46437.2021.01153
-
-### Architecture Description
-
-UV-Net operates directly on Boundary Representation (B-rep) data from 3D CAD models:
+The `GraphClassification` model operates directly on Boundary Representation (B-rep) data from 3D CAD models using a CNN+GNN approach:
 
 **Geometric Encoding:**
-- **Face Geometry:** 2D UV-grids sampled uniformly in the parameter domain
+- **Face Geometry:** Discretized sample points sampled on face surfaces
 - **Edge Geometry:** 1D U-grids along edge curves
 
 **Neural Network Components:**
-- **2D CNNs:** Applied to face UV-grids to extract surface features
+- **2D CNNs:** Applied to face discretization samples to extract surface features
 - **1D CNNs:** Applied to edge U-grids to extract curve features
 - **Graph Neural Networks:** Aggregate topological information via face-adjacency graph
 
 **Topology Representation:**
 - **Nodes:** Individual faces of the CAD model
 - **Edges:** Adjacency relationships between faces
-- **Node Features:** Encoded face UV-grids
+- **Node Features:** Encoded face discretization samples
 - **Edge Features:** Encoded edge U-grids
 
 **Output:**
 - Single classification label for the entire CAD model
 
-### Original Applications
+### Technology Details
 
-- Auto-complete of modeling operations in CAD software
-- Smart selection tools
-- Shape similarity search
-- Design recommendation systems
-
-### GitHub Repository
-
-https://github.com/AutodeskAILab/UV-Net
-
----
-
-## Citation and Licensing
-
-### BibTeX Citation
-
-When publishing research using this model, please cite the original paper:
-
-```bibtex
-@inproceedings{jayaraman2021uvnet,
-  title={UV-Net: Learning from Boundary Representations},
-  author={Jayaraman, Pradeep Kumar and Sanghi, Aditya and Lambourne, Joseph G and Willis, Karl DD and Davies, Thomas and Shayani, Hooman and Morris, Nigel},
-  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
-  pages={11703--11712},
-  year={2021}
-}
-```
-
-### MIT License
-
-UV-Net is distributed under the **MIT License** by Autodesk AI Lab.
-
-**HOOPS AI Modifications:**
-- Implementation of `FlowModel` interface
-- Integration with HOOPS AI storage system
-- Adaptation for `FlowTrainer` and `FlowInference`
-- Custom collation functions for DGL graphs
-
-**Original Authors:** Autodesk AI Lab  
-**HOOPS AI Integration:** Tech Soft 3D  
-**Location:** `src/hoops_ai/ml/_thirdparty/uvnet/`
+This implementation is based on a state-of-the-art architecture for learning from boundary representations. For complete technical details, original paper citation, and licensing information, please refer to [Acknowledgements.md](./Acknowledgements.md).
 
 ---
 
@@ -169,7 +124,7 @@ def encode_cad_data(self, cad_file: str, cad_loader: CADLoader, storage: DataSto
     
     # Node features (faces)
     brep_encoder.push_face_attributes()
-    brep_encoder.push_facegrid(10, 10)  # 10x10 UV grid
+    brep_encoder.push_face_discretization(pointsamples=25)  # Sample points per face
     
     # Edge features
     brep_encoder.push_edge_attributes()
@@ -181,10 +136,10 @@ def encode_cad_data(self, cad_file: str, cad_loader: CADLoader, storage: DataSto
 
 ### Feature Specifications
 
-**Node Features (Face UV-grids):**
-- **Shape:** `(10, 10, 7)`
+**Node Features (Face Discretization):**
+- **Shape:** `(pointsamples, 7)` where pointsamples is typically 25
 - **Components:** `(x, y, z, nx, ny, nz, visibility)`
-- **Encoding:** 2D CNN processes each face's UV-grid
+- **Encoding:** 2D CNN processes each face's discretized sample points
 
 **Edge Features (Edge U-grids):**
 - **Shape:** `(10, 6)`
@@ -200,7 +155,7 @@ def encode_cad_data(self, cad_file: str, cad_loader: CADLoader, storage: DataSto
 For each face $f_i$:
 
 $$
-\mathbf{X}_{f_i} = \text{CNN}_{2D}\left(\mathbf{UV}_{f_i}^{10 \times 10 \times 7}\right) \in \mathbb{R}^{d_{\text{face}}}
+\mathbf{X}_{f_i} = \text{CNN}_{2D}\left(\mathbf{S}_{f_i}^{n_{\text{samples}} \times 7}\right) \in \mathbb{R}^{d_{\text{face}}}
 $$
 
 For each edge $e_{ij}$ between faces $f_i$ and $f_j$:
@@ -332,7 +287,7 @@ description_to_code = {v["name"]: k for k, v in labels_description.items()}
 builder = SchemaBuilder(
     domain="Part_classification", 
     version="1.0", 
-    description="Schema for part classification according to UVNet paper"
+    description="Schema for part classification"
 )
 file_group = builder.create_group("file", "file", "Information related to the cad file")
 file_group.create_array("file_label", ["file"], "int32", "FABWAVE part label as integer (0-44)")
@@ -638,15 +593,17 @@ for result in results:
 
 ### Default Configuration
 
-The `GraphClassification` model uses UV-Net's default hyperparameters, which are embedded in the underlying architecture.
+The `GraphClassification` model uses default hyperparameters which are embedded in the underlying architecture.
 
 ### Tuning Strategy
 
-Since the model wraps a pre-defined architecture, hyperparameter tuning focuses on:
+Since the model uses a pre-defined architecture, hyperparameter tuning focuses on:
 
 1. **Training Hyperparameters** (via `FlowTrainer`)
-2. **UV Grid Resolution** (in encoding)
+2. **Face Discretization Resolution** (in encoding)
 3. **Data Augmentation** (custom preprocessing)
+
+For architecture-level modifications, you would need to extend the `GraphClassification` class.
 
 ### Training Hyperparameters
 
@@ -673,9 +630,9 @@ trainer = FlowTrainer(
 )
 ```
 
-### UV Grid Resolution
+### Face Discretization Resolution
 
-Higher resolution captures more geometric detail but increases memory:
+Higher number of sample points captures more geometric detail but increases memory:
 
 ```python
 # In your encoding task:
@@ -684,39 +641,33 @@ def my_encoder(cad_file, cad_loader, storage):
     
     # Override default encoding with custom resolution
     brep_encoder = BrepEncoder(model.get_brep(), storage)
-    brep_encoder.push_facegrid(20, 20)  # Higher resolution (default: 10x10)
+    brep_encoder.push_face_discretization(pointsamples=50)  # Higher resolution (default: 25)
     brep_encoder.push_curvegrid(20)     # Higher resolution (default: 10)
 ```
 
 **Trade-offs:**
-- **Low resolution (5x5):** Fast, less memory, lower accuracy
-- **Medium resolution (10x10):** Balanced (default)
-- **High resolution (20x20):** Slower, more memory, higher accuracy
+- **Low resolution (10 points):** Fast, less memory, lower accuracy
+- **Medium resolution (25 points):** Balanced (default)
+- **High resolution (50+ points):** Slower, more memory, higher accuracy
 
 ### Model Architecture Modifications
 
-To modify the underlying UV-Net architecture, you would need to:
+To modify the underlying architecture, you would need to:
 
 1. Extend the `GraphClassification` class
 2. Override the `retrieve_model()` method
-3. Customize the `Classification` model initialization in `_thirdparty/uvnet/`
+3. Customize the model initialization in `_thirdparty/` directory
 
 **Example:**
 ```python
 from hoops_ai.ml.EXPERIMENTAL import GraphClassification
-from hoops_ai.ml._thirdparty.uvnet.models.models import Classification
 
 class CustomGraphClassification(GraphClassification):
     def __init__(self, num_classes, **kwargs):
         super().__init__(num_classes, **kwargs)
         
-        # Override with custom model hyperparameters
-        self.model = Classification(
-            num_classes=num_classes,
-            metric_storage=self.metric_storage,
-            # Add custom hyperparameters here
-            hidden_dim=512,  # Example custom parameter
-        )
+        # Override with custom model parameters if needed
+        # See the underlying architecture documentation for available options
 ```
 
 ---
@@ -765,14 +716,14 @@ trainer = FlowTrainer(
 
 ### Issue: Shape Mismatch During Training
 
-**Symptom:** `RuntimeError: expected shape [B, 10, 10, 7], got [B, 20, 20, 7]`
+**Symptom:** `RuntimeError: expected shape [B, 25, 7], got [B, 40, 7]`
 
-**Cause:** Inconsistent UV grid resolution between files
+**Cause:** Inconsistent face discretization resolution between files
 
 **Solution:**
 ```python
-# Ensure all files use same grid size
-brep_encoder.push_facegrid(10, 10)  # Always use 10x10
+# Ensure all files use same number of sample points
+brep_encoder.push_face_discretization(pointsamples=25)  # Always use 25 points
 ```
 
 ---
@@ -818,7 +769,8 @@ print(np.bincount(labels))
 ## Related Documentation
 
 - [Flow Model Architecture](./FlowModel_Architecture.md)
-- [GraphNodeClassification (BrepMFR)](./GraphNodeClassification_BrepMFR.md)
+- [GraphNodeClassification (Graph Node Classifier)](./GraphNodeClassification.md)
+- [Acknowledgements](./Acknowledgements.md) - Attribution and citations
 - [Module Access & Encoder Documentation](./Module_Access_and_Encoder.md)
 - [Flow Documentation](./Flow_Documentation.md)
 
@@ -826,13 +778,15 @@ print(np.bincount(labels))
 
 ## Conclusion
 
-`GraphClassification` provides a production-ready wrapper around UV-Net for CAD part classification. By following the `FlowModel` interface, it seamlessly integrates with HOOPS AI's Flow framework for batch preprocessing and supports both training and inference workflows with guaranteed encoding consistency.
+`GraphClassification` provides a production-ready implementation of a graph-level classifier for CAD part classification. By following the `FlowModel` interface, it seamlessly integrates with HOOPS AI's Flow framework for batch preprocessing and supports both training and inference workflows with guaranteed encoding consistency.
 
 **Key Takeaways:**
 1. Instantiate `GraphClassification` once at module level
 2. Wrap its methods in `@flowtask` decorated tasks
 3. Use the same instance for training (`FlowTrainer`) and inference (`FlowInference`)
 4. Customize encoding by modifying the Flow task, not the FlowModel
+
+**Attribution:** This implementation is based on a third-party architecture. When publishing research using this model, please refer to [Acknowledgements.md](./Acknowledgements.md) for proper citation.
 
 ---
 

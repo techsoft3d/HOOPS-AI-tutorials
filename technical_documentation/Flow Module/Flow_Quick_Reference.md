@@ -1,378 +1,389 @@
-# HOOPS AI Flow - Quick Reference Card
+# HOOPS AI Flow - Quick Reference
 
-## 🚀 Quick Start (3 Steps)
+## Architecture Overview
 
-### 1. Create Task File (cad_tasks.py)
+HOOPS AI Flow uses a **decorator-based task orchestration architecture** where data flows through a pipeline of parallelizable tasks. The framework automatically manages:
+
+- **Task Dependencies**: Data flows from task outputs to task inputs
+- **Parallel Execution**: Process multiple files concurrently using ProcessPoolExecutor
+- **Storage Management**: Automatic creation and cleanup of data stores
+- **Schema Routing**: Organize encoded data into structured groups for ML consumption
+
+### Core Concepts
+
+1. **Tasks**: Python functions decorated with `@flowtask` that process data
+2. **Flow**: Orchestrator that chains tasks and manages execution
+3. **Schema**: Blueprint defining how encoded data should be organized
+4. **Storage**: Zarr-based persistence layer for encoded features
+5. **Explorer**: Query interface for merged datasets
+
+---
+
+## Quick Start (3 Steps)
+
+### 1. Define Schema and Tasks (cad_tasks.py)
 
 ```python
 import os
+import glob
 import hoops_ai
 from hoops_ai.flowmanager import flowtask
+from hoops_ai.storage.datasetstorage.schema_builder import SchemaBuilder
 
-# Set license at module level
+# Set license at module level for worker processes
 hoops_ai.set_license(os.getenv("HOOPS_AI_LICENSE"), validate=False)
 
 # Define schema at module level
-from hoops_ai.storage.datasetstorage.schema_builder import SchemaBuilder
-builder = SchemaBuilder(domain="MyDomain", version="1.0")
-group = builder.create_group("data", "item", "Data group")
-group.create_array("values", ["item"], "float32", "Values")
-my_schema = builder.build()
+builder = SchemaBuilder(domain="CAD_analysis", version="1.0")
+group = builder.create_group("faces", "face", "Face data")
+group.create_array("areas", ["face"], "float32", "Face areas")
+cad_schema = builder.build()
 
 @flowtask.extract(name="gather", inputs=["sources"], outputs=["files"])
-def gather_files(source):
-    return glob.glob(f"{source}/*.step")
+def gather_files(sources):
+    all_files = []
+    for source in sources:
+        all_files.extend(glob.glob(f"{source}/**/*.step", recursive=True))
+    return all_files
 
 @flowtask.transform(name="encode", inputs=["cad_file", "cad_loader", "storage"], 
                     outputs=["encoded"])
 def encode_data(cad_file, cad_loader, storage):
     cad_model = cad_loader.create_from_file(cad_file)
-    storage.set_schema(my_schema)
-    # ... extract features ...
+    storage.set_schema(cad_schema)
+    # Extract features...
     storage.compress_store()
     return storage.get_file_path("")
 ```
 
-### 2. Create Flow in Notebook
+### 2. Create and Execute Flow (Notebook)
 
 ```python
 from cad_tasks import gather_files, encode_data
 import hoops_ai
 
 flow = hoops_ai.create_flow(
-    name="my_pipeline",
+    name="cad_pipeline",
     tasks=[gather_files, encode_data],
     flows_outputdir="./output",
     max_workers=8,
     auto_dataset_export=True
 )
+
+output, summary, flow_file = flow.process(inputs={'sources': ["/path/to/cad"]})
 ```
 
-### 3. Execute and Analyze
+### 3. Query and Use Dataset
 
 ```python
-output, summary, flow_file = flow.process(inputs={'sources': ["/path/to/cad"]})
-
-print(f"Processed: {summary['file_count']} files")
-print(f"Dataset: {summary['flow_data']}")
-
 from hoops_ai.dataset import DatasetExplorer
+
 explorer = DatasetExplorer(flow_output_file=flow_file)
 explorer.print_table_of_contents()
+
+# Query files by condition
+file_list = explorer.get_file_list(
+    group="faces",
+    where=lambda ds: ds['face_count'] > 100
+)
 ```
 
 ---
 
-## 📋 Decorator Signatures
+## API Reference
 
-### @flowtask.extract
+### Task Decorators
+
+#### @flowtask.extract
+**Purpose**: Gather input data (files, database queries, etc.)
 
 ```python
 @flowtask.extract(
-    name="task_name",              # Optional: defaults to function name
-    inputs=["input_key"],          # List of input keys from flow inputs
-    outputs=["output_key"],        # List of output keys produced
-    parallel_execution=True        # Enable parallel execution
+    name="task_name",           # Optional: defaults to function name
+    inputs=["sources"],          # Keys from flow.process(inputs={...})
+    outputs=["files"],           # Keys passed to next task
+    parallel_execution=True      # Default: True
 )
-def my_extract(source: str) -> List[str]:
+def gather_files(sources: List[str]) -> List[str]:
+    """
+    Args:
+        sources: Input data from flow.process()
+    Returns:
+        List of items to process (e.g., file paths)
+    """
     return [...]
 ```
 
-**Common Pattern**: File gathering, database queries
-
-### @flowtask.transform
+#### @flowtask.transform
+**Purpose**: Process individual items (CAD encoding, feature extraction)
 
 ```python
 @flowtask.transform(
-    name="task_name",
-    inputs=["cad_file", "cad_loader", "storage"],  # Framework provides loader & storage
-    outputs=["result"],
+    name="encode",
+    inputs=["cad_file", "cad_loader", "storage"],  # Framework injects loader & storage
+    outputs=["encoded_path"],
     parallel_execution=True
 )
-def my_transform(cad_file: str, cad_loader: HOOPSLoader, storage: DataStorage) -> str:
-    return "result_path"
+def encode_cad(cad_file: str, cad_loader, storage) -> str:
+    """
+    Args:
+        cad_file: Single file from previous task output
+        cad_loader: HOOPSLoader instance (auto-injected)
+        storage: DataStorage instance (auto-injected)
+    Returns:
+        Path to encoded data file
+    """
+    return "path/to/encoded.data"
 ```
 
-**Common Pattern**: CAD encoding, feature extraction
-
-### @flowtask.custom
+#### @flowtask.custom
+**Purpose**: Aggregation, validation, or custom logic
 
 ```python
 @flowtask.custom(
-    name="task_name",
-    inputs=["data"],
-    outputs=["processed"],
-    parallel_execution=False  # Often runs sequentially
+    name="aggregate",
+    inputs=["encoded_files"],
+    outputs=["summary"],
+    parallel_execution=False  # Typically sequential
 )
-def my_custom(data):
-    return process(data)
+def aggregate_results(encoded_files: List[str]) -> dict:
+    """Custom processing logic"""
+    return {"summary": "..."}
 ```
 
-**Common Pattern**: Aggregation, reporting, validation
-
----
-
-## 🔧 Flow Configuration
+### Flow Configuration
 
 ```python
 hoops_ai.create_flow(
-    name="my_flow",                      # Required: Flow identifier
-    tasks=[task1, task2, ...],           # Required: List of decorated functions
-    flows_outputdir="./output",          # Required: Output directory
-    max_workers=None,                    # Optional: None = auto-detect CPU count
-    ml_task="Task description",          # Optional: ML task description
-    debug=False,                         # False = parallel, True = sequential
-    auto_dataset_export=True             # Auto-merge encoded data
+    name: str,                    # Flow identifier
+    tasks: List[callable],        # Decorated task functions
+    flows_outputdir: str,         # Output directory
+    max_workers: int = None,      # Parallel workers (None = auto-detect)
+    debug: bool = False,          # True = sequential execution
+    auto_dataset_export: bool = True,  # Auto-merge encoded data
+    ml_task: str = ""            # Description for documentation
 )
 ```
 
----
+**Returns**: `(FlowOutput, dict, str)`
+- `FlowOutput`: Detailed execution results
+- `dict`: Summary with keys: `file_count`, `flow_data`, `flow_info`, `Duration [seconds]`
+- `str`: Path to `.flow` file
 
-## 📂 Output Structure
-
-```
-flows_outputdir/flows/{flow_name}/
-├── {flow_name}.flow          # ⭐ Main output: JSON with all metadata
-├── {flow_name}.dataset       # Merged Zarr dataset
-├── {flow_name}.infoset       # File-level metadata (Parquet)
-├── {flow_name}.attribset     # Categorical metadata (Parquet)
-├── error_summary.json        # Errors encountered
-├── flow_log.log              # Execution log
-├── encoded/                  # Individual .data files
-└── stream_cache/             # Visualization assets
-```
-
----
-
-## 🎯 Common Patterns
-
-### Pattern: CAD Encoding
+### Schema Builder API
 
 ```python
-@flowtask.transform(name="encode", inputs=["cad_file", "cad_loader", "storage"], 
-                    outputs=["path"])
-def encode(cad_file, cad_loader, storage):
+from hoops_ai.storage.datasetstorage.schema_builder import SchemaBuilder
+
+# Initialize schema
+builder = SchemaBuilder(domain="MyDomain", version="1.0")
+
+# Create data group
+group = builder.create_group(
+    name="faces",              # Group name
+    base_dimension="face",     # Base dimension for arrays
+    description="Face data"    # Documentation
+)
+
+# Add arrays to group
+group.create_array(
+    name="areas",              # Array name
+    dims=["face"],             # Dimensions
+    dtype="float32",           # Data type
+    description="Face areas"   # Documentation
+)
+
+# Define metadata routing
+builder.define_file_metadata("processing_time", "float32", "Processing time")
+builder.define_categorical_metadata("category", "int32", "Part category")
+
+# Build schema
+schema = builder.build()
+```
+
+### DatasetExplorer API
+
+```python
+from hoops_ai.dataset import DatasetExplorer
+
+explorer = DatasetExplorer(flow_output_file="path/to/flow.flow")
+
+# View dataset structure
+explorer.print_table_of_contents()
+
+# Get available groups
+groups = explorer.available_groups()  # Returns: ['faces', 'edges', ...]
+
+# Query files
+file_list = explorer.get_file_list(
+    group="faces",
+    where=lambda ds: ds['face_count'] > 100
+)
+
+# Create distribution
+dist = explorer.create_distribution(
+    key="category",
+    group="labels",
+    bins=10  # None = auto-bin
+)
+```
+
+### DatasetLoader API
+
+```python
+from hoops_ai.dataset import DatasetLoader
+
+loader = DatasetLoader(
+    merged_store_path="path/to/flow.dataset",
+    parquet_file_path="path/to/flow.infoset"
+)
+
+# Split dataset
+train_size, val_size, test_size = loader.split(
+    key="category",            # Column to stratify by
+    group="labels",            # Group containing the key
+    train=0.7,
+    validation=0.15,
+    test=0.15,
+    random_state=42
+)
+
+# Get PyTorch dataset
+train_dataset = loader.get_dataset("train")
+
+loader.close_resources()
+```
+
+---
+
+## Common Usage Patterns
+
+### Pattern 1: CAD Encoding Pipeline
+
+```python
+@flowtask.transform(name="encode", inputs=["cad_file", "cad_loader", "storage"])
+def encode_cad(cad_file, cad_loader, storage):
+    # Load CAD file
     cad_model = cad_loader.create_from_file(cad_file)
-    storage.set_schema(my_schema)
+    storage.set_schema(cad_schema)
     
-    hoops_tools = HOOPSTools()
-    hoops_tools.adapt_brep(cad_model, None)
-    
+    # Extract features
+    from hoops_ai.cadencoder import BrepEncoder
     brep_encoder = BrepEncoder(cad_model.get_brep(), storage)
     brep_encoder.push_face_attributes()
     
-    storage.save_data("group/array", np.array([...]))
-    storage.save_metadata("key", "value")
-    storage.compress_store()
+    # Save custom metadata
+    storage.save_metadata("face_count", cad_model.get_face_count())
     
+    # Finalize
+    storage.compress_store()
     return storage.get_file_path("")
 ```
 
-### Pattern: Multi-Directory Gathering
+### Pattern 2: Multi-Source Gathering
 
 ```python
 @flowtask.extract(name="gather", inputs=["sources"], outputs=["files"])
-def gather(sources: List[str]) -> List[str]:
+def gather_files(sources):
     all_files = []
     for source in sources:
         all_files.extend(glob.glob(f"{source}/**/*.step", recursive=True))
     return all_files
 ```
 
-### Pattern: Conditional Processing
+### Pattern 3: Filtered Dataset Querying
 
 ```python
-@flowtask.transform(...)
-def encode_selective(cad_file, cad_loader, storage):
-    cad_model = cad_loader.create_from_file(cad_file)
-    
-    if cad_model.get_face_count() < 10:
-        return None  # Skip simple models
-    
-    # Continue with encoding...
+# Complex query with lambda
+high_complexity = lambda ds: (ds['face_count'] > 100) & (ds['category'] == 5)
+file_list = explorer.get_file_list(group="labels", where=high_complexity)
+
+# Visualize results
+from hoops_ai.insights import DatasetViewer
+viewer = DatasetViewer.from_explorer(explorer)
+viewer.show_preview_as_image(file_list, grid_cols=5)
 ```
 
 ---
 
-## ⚙️ Windows ProcessPoolExecutor Rules
+## Output File Structure
 
-### ✅ DO (Required)
+```
+flows_outputdir/flows/{flow_name}/
+├── {flow_name}.flow          # Main output: JSON with all metadata
+├── {flow_name}.dataset       # Merged Zarr dataset
+├── {flow_name}.infoset       # File-level metadata (Parquet)
+├── {flow_name}.attribset     # Categorical metadata (Parquet)
+├── error_summary.json        # Errors encountered during processing
+├── flow_log.log              # Detailed execution log
+├── encoded/                  # Individual .data files (Zarr format)
+└── stream_cache/             # PNG previews for visualization
+```
 
-1. **Define tasks in .py files** (not notebooks)
+---
+
+## Windows ProcessPoolExecutor Requirements
+
+**Critical**: On Windows, parallel execution uses separate processes (not threads). This requires:
+
+### ✅ Required Setup
+
+1. **Define tasks in `.py` files** (e.g., `cad_tasks.py`)
 2. **Set license at module level**:
    ```python
    hoops_ai.set_license(os.getenv("HOOPS_AI_LICENSE"), validate=False)
    ```
 3. **Define schema at module level**:
    ```python
-   builder = SchemaBuilder(...)
-   my_schema = builder.build()  # Available to all workers
+   cad_schema = builder.build()  # Global variable
    ```
-4. **Import tasks into notebook**:
+4. **Import tasks in notebook**:
    ```python
    from cad_tasks import gather_files, encode_data
    ```
 
-### ❌ DON'T (Will Fail)
+### ❌ Will Fail
 
-1. ❌ Define tasks in notebook cells
-2. ❌ Set license only in notebook
-3. ❌ Define schema only in notebook
-4. ❌ Use `max_workers > 1` with notebook-defined tasks on Windows
+- Defining tasks in notebook cells
+- Setting license only in notebook
+- Defining schema only in notebook
 
 ---
 
-## 🔍 Debugging
+## Debugging
 
-### Enable Sequential Mode
+### Sequential Execution Mode
 
 ```python
-flow = hoops_ai.create_flow(..., debug=True)  # Sequential execution
+flow = hoops_ai.create_flow(..., debug=True)  # Sequential, easier to debug
 ```
 
-### Check Logs
+### Check Execution Logs
 
 ```python
-# Read flow log
-with open(f"{output_dir}/flows/{flow_name}/flow_log.log") as f:
-    print(f.read())
-
-# Check errors
 import json
-with open(f"{output_dir}/flows/{flow_name}/error_summary.json") as f:
+
+# View errors
+with open("output/flows/my_flow/error_summary.json") as f:
     errors = json.load(f)
-    print(f"Errors: {len(errors)}")
-```
+    for err in errors:
+        print(f"File: {err['file']}, Error: {err['message']}")
 
-### Test with Small Dataset
-
-```python
-# Test with 10 files first
-test_sources = ["/path/to/small/dataset"]
-test_flow = hoops_ai.create_flow(
-    name="test_run",
-    tasks=[gather_files, encode_data],
-    flows_outputdir="./test_output",
-    max_workers=2,
-    debug=True
-)
+# View execution log
+with open("output/flows/my_flow/flow_log.log") as f:
+    print(f.read())
 ```
 
 ---
 
-## 📊 Performance Tuning
+## Best Practices
 
-### Rule of Thumb: max_workers
-
-| Task Type | Recommended max_workers |
-|-----------|-------------------------|
-| I/O-bound (file gathering) | `cpu_count * 2` |
-| CPU-bound (CAD encoding) | `cpu_count` |
-| Memory-intensive | `RAM_GB / 4` |
-
-### Dataset Merging Chunk Sizes
-
-```python
-# Small datasets (<100K faces total)
-merger.merge_data(face_chunk=100_000, batch_size=50)
-
-# Large datasets (>1M faces total)
-merger.merge_data(face_chunk=1_000_000, batch_size=500)
-```
+1. **Start Small**: Test with 10-100 files before scaling
+2. **Use Schemas**: Always define schemas for predictable data organization
+3. **Handle Errors Gracefully**: Framework collects errors; inspect after execution
+4. **Monitor Resources**: Check memory usage during large dataset processing
+5. **Version Control**: Track schemas and task definitions in git
 
 ---
 
-## 🔗 Flow Outputs → Next Steps
-
-### Use DatasetExplorer
-
-```python
-from hoops_ai.dataset import DatasetExplorer
-
-explorer = DatasetExplorer(flow_output_file=flow_file)
-explorer.print_table_of_contents()
-
-# Query data
-file_list = explorer.get_file_list(
-    group="labels",
-    where=lambda ds: ds['category'] == 5
-)
-```
-
-### Prepare for ML Training
-
-```python
-from hoops_ai.dataset import DatasetLoader
-
-loader = DatasetLoader(
-    merged_store_path=summary['flow_data'],
-    parquet_file_path=summary['flow_info']
-)
-
-train_size, val_size, test_size = loader.split(
-    key="category",
-    group="labels",
-    train=0.7,
-    validation=0.15,
-    test=0.15
-)
-
-train_dataset = loader.get_dataset("train")
-```
-
----
-
-## 🆘 Common Issues
-
-### Issue: PicklingError on Windows
-
-**Cause**: Tasks defined in notebook  
-**Fix**: Move tasks to `.py` file
-
-### Issue: License not found in workers
-
-**Cause**: License set only in notebook  
-**Fix**: Set license at module level in `cad_tasks.py`
-
-### Issue: Schema not found in merged dataset
-
-**Cause**: Schema defined only in notebook  
-**Fix**: Define schema at module level in `cad_tasks.py`
-
-### Issue: Out of memory during merging
-
-**Cause**: Chunk sizes too large  
-**Fix**: Reduce `face_chunk` parameter in `merge_data()`
-
-### Issue: Slow file gathering
-
-**Cause**: Sequential glob operations  
-**Fix**: Increase `max_workers` for extract tasks
-
----
-
-## 📖 Full Documentation
-
-See [Flow_Documentation.md](Flow_Documentation.md) for complete details including:
-- Architecture deep dive
-- Advanced patterns
-- Custom storage providers
-- Multi-stage pipelines
-- Best practices
-
----
-
-## 💡 Tips
-
-1. **Start small**: Test with 10-100 files before processing thousands
-2. **Monitor resources**: Check memory usage during encoding
-3. **Profile execution**: Use `.flow` file to identify bottlenecks
-4. **Use schemas**: Always define schemas for predictable data organization
-5. **Handle errors gracefully**: Let the framework collect errors, inspect later
-6. **Clean up**: Delete test outputs before production runs
-7. **Document tasks**: Add docstrings to all decorated functions
-8. **Version control**: Track schemas and task definitions in git
-
----
-
-**HOOPS AI Flow: From CAD files to ML-ready datasets in 3 simple steps!**
+**See [Flow_Documentation.md](Flow_Documentation.md) for detailed architecture and advanced patterns.**

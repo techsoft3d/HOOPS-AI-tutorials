@@ -70,7 +70,7 @@ The Flow Model architecture follows this relationship:
          │                                         │
 ┌────────────────────────┐              ┌─────────────────────────┐
 │  GraphClassification   │              │ GraphNodeClassification │
-│  (UV-Net wrapper)      │              │  (BrepMFR wrapper)      │
+│  (Graph classifier)    │              │  (Graph node classifier)│
 └────────────────────────┘              └─────────────────────────┘
          │                                         │
          └────────────────────┬────────────────────┘
@@ -175,7 +175,7 @@ A `FlowModel` encapsulates **how** to:
 
 **Workflow:**
 1. Load graph structure (edges, nodes)
-2. Attach node features (e.g., face UV grids)
+2. Attach node features (e.g., face discretization samples)
 3. Attach edge features (e.g., edge curve grids)
 4. Attach labels (if available)
 5. Save graph to file
@@ -282,33 +282,37 @@ For a CAD model with faces $\mathcal{F} = \{f_0, \ldots, f_{N_f-1}\}$ and edges 
 
 ## Available Implementations
 
-HOOPS AI provides two concrete implementations of the `FlowModel` interface, each wrapping a state-of-the-art open-source architecture:
+HOOPS AI provides two concrete implementations of the `FlowModel` interface, each based on state-of-the-art open-source architectures (see Acknowledgements section):
 
-### 1. GraphClassification (UV-Net)
+### 1. GraphClassification - Graph-Level Classifier
 
 **Use Case:** Graph-level classification (e.g., part classification, shape categorization)
 
-**Documentation:** [GraphClassification_UVNet.md](./GraphClassification_UVNet.md)
+**Documentation:** [GraphClassification.md](./GraphClassification.md)
 
 **Key Features:**
 - Whole-model classification
-- 2D CNNs on face UV-grids
+- 2D CNNs on face discretization samples
 - 1D CNNs on edge U-grids
 - Ideal for: Part type identification, shape similarity
 
+**Technology:** Based on a CNN+GNN architecture for learning from Boundary Representations
+
 ---
 
-### 2. GraphNodeClassification (BrepMFR)
+### 2. GraphNodeClassification - Graph Node Classifier
 
 **Use Case:** Node-level classification (e.g., machining feature recognition, face segmentation)
 
-**Documentation:** [GraphNodeClassification_BrepMFR.md](./GraphNodeClassification_BrepMFR.md)
+**Documentation:** [GraphNodeClassification.md](./GraphNodeClassification.md)
 
 **Key Features:**
 - Per-face classification
 - Transformer-based GNN architecture
 - Rich topological feature encoding
 - Ideal for: Feature recognition, semantic segmentation
+
+**Technology:** Based on a Transformer+GNN architecture with enhanced topological encoding
 
 ---
 
@@ -557,237 +561,17 @@ print(f"Face predictions: {predictions['node_predictions']}")
 
 ---
 
-## Third-Party Models and Licensing
 
-### Overview
-
-HOOPS AI integrates open-source machine learning architectures to provide state-of-the-art CAD analysis capabilities. These models are located in the `src/hoops_ai/ml/_thirdparty/` directory and are used under their respective open-source licenses.
-
----
-
-### Included Models
-
-#### 1. UV-Net (Autodesk AI Lab)
-
-**Source:** https://github.com/AutodeskAILab/UV-Net  
-**License:** MIT License  
-**Authors:** Jayaraman, P. K., Sanghi, A., Lambourne, J. G., Willis, K. D. D., Davies, T., Shayani, H., & Morris, N.  
-**Year:** 2021  
-**Location:** `src/hoops_ai/ml/_thirdparty/uvnet/`
-
-**Citation:**
-```bibtex
-@inproceedings{jayaraman2021uvnet,
-  title={UV-Net: Learning from Boundary Representations},
-  author={Jayaraman, Pradeep Kumar and Sanghi, Aditya and Lambourne, Joseph G and Willis, Karl DD and Davies, Thomas and Shayani, Hooman and Morris, Nigel},
-  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
-  pages={11703--11712},
-  year={2021}
-}
-```
-
----
-
-#### 2. BrepMFR (Zhang et al.)
-
-**Source:** https://github.com/zhangshuming0668/BrepMFR  
-**License:** MIT License  
-**Authors:** Zhang, S., Guan, Z., Jiang, H., Wang, X., & Tan, P.  
-**Year:** 2024  
-**Location:** `src/hoops_ai/ml/_thirdparty/brepmfr/`
-
-**Citation:**
-```bibtex
-@article{zhang2024brepmfr,
-  title={BrepMFR: Enhancing machining feature recognition in B-rep models through deep learning and domain adaptation},
-  author={Zhang, Shuming and Guan, Zhiguang and Jiang, Han and Wang, Xiaojun and Tan, Ping},
-  journal={Computer Aided Geometric Design},
-  volume={111},
-  pages={102318},
-  year={2024},
-  publisher={Elsevier}
-}
-```
-
----
-
-### Attribution and Compliance
-
-**Tech Soft 3D Stance on Third-Party Code:**
-
-While HOOPS AI provides convenient wrappers (`GraphClassification`, `GraphNodeClassification`) to integrate these architectures into the Flow Model framework, **the original authors retain full credit for their pioneering work**. 
-
-Our modifications are limited to:
-1. **Interface Adaptation:** Implementing the `FlowModel` abstract interface
-2. **Storage Integration:** Connecting to HOOPS AI's data storage system
-3. **Training Infrastructure:** Enabling use with `FlowTrainer` and `FlowInference`
-
-**We do NOT claim authorship of the underlying ML architectures.** Users of HOOPS AI should cite the original papers when publishing results using these models.
-
----
-
-### MIT License Compliance
-
-Both integrated models are distributed under the **MIT License**, which permits:
-- ✅ Commercial use
-- ✅ Modification
-- ✅ Distribution
-- ✅ Private use
-
-**Requirements:**
-- Include the original copyright notice
-- Include the MIT license text
-- Acknowledge modifications made by Tech Soft 3D
-
-HOOPS AI complies with these requirements by:
-1. Preserving original copyright notices in source files
-2. Including LICENSE files in `_thirdparty/` subdirectories
-3. Clearly documenting modifications in technical documents
-4. Providing citation information in model wrappers
-
----
-
-## Best Practices
-
-### 1. Dataset Preparation
-
-**Always validate your data before training:**
-```python
-# Run purify to identify problematic samples
-trainer.purify(num_processes=4)
-
-# Review error reports in chunk_errors/
-# Remove problematic samples from dataset
-```
-
----
-
-### 2. Hyperparameter Tuning
-
-**Start with default parameters, then tune:**
-```python
-# Default configuration
-flowmodel = GraphNodeClassification(num_classes=25)
-
-# After initial training, adjust based on validation metrics
-flowmodel = GraphNodeClassification(
-    num_classes=25,
-    n_layers_encode=12,  # Deeper for complex datasets
-    learning_rate=0.001,  # Lower LR for fine-tuning
-    dropout=0.5  # Higher dropout if overfitting
-)
-```
-
----
-
-### 3. Checkpoint Management
-
-**Save multiple checkpoints during training:**
-```python
-checkpoint_callback = ModelCheckpoint(
-    save_top_k=5,  # Keep top 5 models
-    save_last=True,  # Always save last epoch
-    monitor="eval_loss"
-)
-```
-
----
-
-### 4. Inference Optimization
-
-**For production deployments:**
-```python
-# Move model to GPU if available
-inference.model.to('cuda')
-
-# Batch multiple files if possible
-files = ["part1.step", "part2.step", "part3.step"]
-batches = [inference.preprocess(f) for f in files]
-```
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-#### 1. Shape Mismatch Errors
-
-**Symptom:** `RuntimeError: shape mismatch in face_uv_grids`
-
-**Cause:** Inconsistent UV grid sampling between training and inference
-
-**Solution:** Ensure same grid sizes in both training and inference
-```python
-brep_encoder.push_facegrid(10, 10)  # Use same values everywhere
-```
-
----
-
-#### 2. Out of Memory (OOM)
-
-**Symptom:** `RuntimeError: CUDA out of memory`
-
-**Solution:**
-```python
-# Reduce batch size
-trainer = FlowTrainer(batch_size=16)
-
-# Use gradient accumulation
-trainer = FlowTrainer(accumulate_grad_batches=2)
-
-# Enable mixed precision training
-trainer = FlowTrainer(precision=16)
-```
-
----
-
-#### 3. Label Dimension Mismatch
-
-**Symptom:** `AssertionError: Expected face-level labels, got graph-level`
-
-**Cause:** Using node classification model with graph-level labels
-
-**Solution:** Ensure label granularity matches model type
-```python
-# For node classification: labels per face
-label_storage.save_face_labels(mlTask, face_label_list)
-
-# For graph classification: labels per graph
-label_storage.save_graph_label(mlTask, graph_label)
-```
-
----
-
-## Future Directions
-
-The Flow Model architecture is **under active development**. Planned enhancements include:
-
-1. **Multi-Framework Support:** Extend beyond PyTorch Lightning to support TensorFlow, JAX
-2. **Streaming Inference:** Handle CAD files larger than RAM via streaming encoding
-3. **Model Zoo:** Pre-trained models for common CAD tasks
-4. **Distributed Training:** Multi-GPU and multi-node training support
-5. **AutoML Integration:** Automatic hyperparameter tuning
-6. **ONNX Export:** Export models for deployment in non-Python environments
-
----
 
 ## Related Documentation
 
-- [GraphClassification (UV-Net) Documentation](./GraphClassification_UVNet.md)
-- [GraphNodeClassification (BrepMFR) Documentation](./GraphNodeClassification_BrepMFR.md)
+- [GraphClassification Documentation](./GraphClassification.md)
+- [GraphNodeClassification Documentation](./GraphNodeClassification.md)
+- [Acknowledgements](./Acknowledgements.md) - Attribution and citations for third-party architectures
 - [Module Access & Encoder Documentation](./Module_Access_and_Encoder.md)
 - [DataStorage Documentation](./DataStorage_Documentation.md)
 - [Flow Documentation](./Flow_Documentation.md)
 
 ---
-
-## Conclusion
-
-The Flow Model architecture provides a **unified interface** for integrating machine learning models with CAD data processing pipelines in HOOPS AI. By separating concerns between data encoding, model architecture, training infrastructure, and inference deployment, developers can focus on their specific domain expertise while leveraging a robust, tested framework.
-
-The architecture's **key innovation** is ensuring that the encoding logic used during training is automatically reused during inference, eliminating a common source of bugs in ML deployment.
-
-While currently **EXPERIMENTAL**, the Flow Model pattern demonstrates the potential for standardized ML workflows in the CAD/CAM domain, and we welcome feedback from the community as it evolves.
 
 

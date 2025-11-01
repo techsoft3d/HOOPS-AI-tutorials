@@ -1,8 +1,8 @@
-# GraphNodeClassification (BrepMFR) Documentation
+# GraphNodeClassification - Graph Node Classifier Documentation
 
 ## Overview
 
-`GraphNodeClassification` is a HOOPS AI wrapper around the **BrepMFR** architecture for node-level (per-face) classification tasks. This implementation encapsulates the complete pipeline from CAD file to face-level predictions, following the `FlowModel` interface for seamless integration with HOOPS AI's training and inference infrastructure.
+`GraphNodeClassification` is a HOOPS AI implementation of a node-level (per-face) classification model for CAD data. This implementation encapsulates the complete pipeline from CAD file to face-level predictions, following the `FlowModel` interface for seamless integration with HOOPS AI's training and inference infrastructure.
 
 **Use Cases:**
 - Machining feature recognition (holes, pockets, slots, chamfers)
@@ -11,34 +11,28 @@
 - Design rule checking
 - Feature-based similarity search
 
+**Note:** This implementation is based on a third-party architecture. For complete attribution and citation information, see Acknowledgements section.
+
 ---
 
 ## Table of Contents
 
 1. [Model Architecture](#model-architecture)
-2. [Citation and Licensing](#citation-and-licensing)
-3. [Initialization](#initialization)
-4. [CAD Encoding Strategy](#cad-encoding-strategy)
-5. [Integration with Flow Tasks](#integration-with-flow-tasks)
-6. [Complete Example: CADSynth-AAG Dataset](#complete-example-cadsynth-aag-dataset)
-7. [Training Workflow](#training-workflow)
-8. [Inference Workflow](#inference-workflow)
-9. [Hyperparameter Tuning](#hyperparameter-tuning)
+2. [Initialization](#initialization)
+3. [CAD Encoding Strategy](#cad-encoding-strategy)
+4. [Integration with Flow Tasks](#integration-with-flow-tasks)
+5. [Complete Example: CADSynth-AAG Dataset](#complete-example-cadsynth-aag-dataset)
+6. [Training Workflow](#training-workflow)
+7. [Inference Workflow](#inference-workflow)
+8. [Hyperparameter Tuning](#hyperparameter-tuning)
 
 ---
 
 ## Model Architecture
 
-### Original Paper
+### Overview
 
-> **Zhang, S., Guan, Z., Jiang, H., Wang, X., & Tan, P. (2024).**  
-> BrepMFR: Enhancing machining feature recognition in B-rep models through deep learning and domain adaptation.  
-> *Computer Aided Geometric Design*, 111, 102318.  
-> https://www.sciencedirect.com/science/article/abs/pii/S0167839624000529
-
-### Architecture Description
-
-BrepMFR converts B-rep models into graph representations for per-face classification:
+The `GraphNodeClassification` model converts B-rep models into graph representations for per-face classification using a Transformer+GNN approach:
 
 **Graph Representation:**
 - **Nodes:** Individual faces of the CAD model
@@ -51,8 +45,8 @@ BrepMFR converts B-rep models into graph representations for per-face classifica
 - **Graph Attention Networks:** Aggregate neighbor information
 - **MLP Classifier:** Per-node classification head
 
-**Key Innovations:**
-- **Local Geometric Encoding:** Face-level UV-grids capture surface shape
+**Key Features:**
+- **Local Geometric Encoding:** Face-level discretization samples capture surface shape
 - **Global Topological Encoding:** Graph structure captures part-level context
 - **Transfer Learning:** Two-step training from synthetic to real CAD models
 - **Attention Mechanisms:** Focus on relevant geometric relationships
@@ -60,51 +54,15 @@ BrepMFR converts B-rep models into graph representations for per-face classifica
 **Output:**
 - Classification label for **each face** in the CAD model
 
-### Original Applications
+### Technology Details
 
-- Machining feature recognition in CAD/CAM workflows
-- Recognizing highly intersecting features with complex geometries
-- Automated process planning for CNC machining
-- Design for manufacturability analysis
+This implementation is based on a state-of-the-art architecture for machining feature recognition in B-rep models. The architecture employs:
+- Rich geometric and topological feature encoding
+- Transformer-based attention mechanisms for capturing long-range dependencies
+- Graph neural networks for local neighborhood aggregation
+- Domain adaptation capabilities for transferring from synthetic to real data
 
-### GitHub Repository
-
-https://github.com/zhangshuming0668/BrepMFR
-
----
-
-## Citation and Licensing
-
-### BibTeX Citation
-
-When publishing research using this model, please cite the original paper:
-
-```bibtex
-@article{zhang2024brepmfr,
-  title={BrepMFR: Enhancing machining feature recognition in B-rep models through deep learning and domain adaptation},
-  author={Zhang, Shuming and Guan, Zhiguang and Jiang, Han and Wang, Xiaojun and Tan, Ping},
-  journal={Computer Aided Geometric Design},
-  volume={111},
-  pages={102318},
-  year={2024},
-  publisher={Elsevier}
-}
-```
-
-### MIT License
-
-BrepMFR is distributed under the **MIT License** by Zhang et al.
-
-**HOOPS AI Modifications:**
-- Implementation of `FlowModel` interface
-- Integration with HOOPS AI storage system
-- Adaptation for `FlowTrainer` and `FlowInference`
-- Custom learning rate schedulers
-- Error logging and debugging enhancements
-
-**Original Authors:** Zhang Shuming and contributors  
-**HOOPS AI Integration:** Tech Soft 3D  
-**Location:** `src/hoops_ai/ml/_thirdparty/brepmfr/`
+For complete technical details, original paper citation, and licensing information, please refer to Acknowledgements section.
 
 ---
 
@@ -217,13 +175,13 @@ def encode_cad_data(self, cad_file: str, cad_loader: CADLoader, storage: DataSto
     
     # Node features (faces)
     brep_encoder.push_face_attributes()
-    brep_encoder.push_facegrid(10, 10)
+    brep_encoder.push_face_discretization(pointsamples=25)
     
     # Edge features
     brep_encoder.push_edge_attributes()
     brep_encoder.push_curvegrid(10)
     
-    # ADDITIONAL TOPOLOGICAL FEATURES (unique to BrepMFR)
+    # ADDITIONAL TOPOLOGICAL FEATURES
     brep_encoder.push_extended_adjacency()
     brep_encoder.push_face_neighbors_count()
     brep_encoder.push_face_pair_edges_path(16)
@@ -236,7 +194,7 @@ def encode_cad_data(self, cad_file: str, cad_loader: CADLoader, storage: DataSto
 ### Feature Specifications
 
 **Node Features (Per Face):**
-1. **UV-grids:** `(10, 10, 7)` - Surface geometry
+1. **Face discretization:** `(pointsamples, 7)` - Surface geometry sampled points
 2. **Face attributes:** Surface type, area, loop count
 3. **Neighbor count:** Number of adjacent faces
 4. **Angle histograms:** Distribution of dihedral angles with neighbors
@@ -259,7 +217,7 @@ For each face $f_i$ with neighbors $\mathcal{N}(f_i)$:
 **Node Embedding:**
 $$
 \mathbf{h}_i^{(0)} = \text{Concat}\left(
-    \text{CNN}_{2D}(\mathbf{UV}_i),\, 
+    \text{CNN}_{2D}(\mathbf{S}_i),\, 
     \mathbf{a}_i,\, 
     \text{Hist}(\{\theta_{ij}\}_{j \in \mathcal{N}(i)}),\,
     \text{Hist}(\{d_{ij}\}_{j \in \mathcal{N}(i)})
@@ -267,7 +225,7 @@ $$
 $$
 
 where:
-- $\mathbf{UV}_i$ is the face UV-grid
+- $\mathbf{S}_i$ is the face discretization sample points
 - $\mathbf{a}_i$ are face attributes (type, area, etc.)
 - $\theta_{ij}$ is the dihedral angle between faces $i$ and $j$
 - $d_{ij}$ is the distance between face centroids
@@ -340,17 +298,7 @@ storage.save_data("face_labels", np.array([0, 1, 1, 2, 0, ...]))  # Label per fa
 
 This example demonstrates processing the CADSynth-AAG segmentation dataset (162k models) using `GraphNodeClassification` integrated with HOOPS AI Flows.
 
-### Dataset Structure
 
-```
-Cadsynth_aag/
-└── step/
-    ├── model_0001.step
-    ├── model_0002.step
-    └── ...  (162,000 models)
-```
-
-**Note:** This dataset is for **unsupervised** preprocessing. Labels would be loaded separately during training.
 
 ### Complete Implementation
 
@@ -429,7 +377,7 @@ def my_demo_encoder(cad_file: str, cad_loader: HOOPSLoader, storage: DataStorage
     Encode CAD data using GraphNodeClassification FlowModel.
     
     This task wraps the FlowModel's encode_cad_data() method and adds:
-    1. Rich topological feature extraction (BrepMFR-specific)
+    1. Rich topological feature extraction
     2. Graph conversion for ML training
     3. Optional label processing (commented out for unsupervised preprocessing)
     """
@@ -533,16 +481,16 @@ def my_demo_encoder(cad_file, cad_loader, storage):
 
 #### 3. Rich Feature Encoding
 
-The key advantage of `GraphNodeClassification` is the **richer feature set**:
+The key advantage of `GraphNodeClassification` is the **richer feature set** that includes extended topological information:
 
 ```python
 # Inside flow_model.encode_cad_data():
-brep_encoder.push_face_adjacency_graph()           # Standard
-brep_encoder.push_facegrid(10, 10)                 # Standard
-brep_encoder.push_extended_adjacency()             # BrepMFR-specific
-brep_encoder.push_face_neighbors_count()           # BrepMFR-specific
-brep_encoder.push_average_face_pair_angle_histograms(5, 64)  # BrepMFR-specific
-brep_encoder.push_average_face_pair_distance_histograms(5, 64)  # BrepMFR-specific
+brep_encoder.push_face_adjacency_graph()           # Standard graph structure
+brep_encoder.push_face_discretization(pointsamples=25)  # Standard face sampling
+brep_encoder.push_extended_adjacency()             # Extended topological features
+brep_encoder.push_face_neighbors_count()           # Neighbor counting
+brep_encoder.push_average_face_pair_angle_histograms(5, 64)  # Angle relationships
+brep_encoder.push_average_face_pair_distance_histograms(5, 64)  # Distance relationships
 ```
 
 ### Output Structure
@@ -862,13 +810,13 @@ cad_flow = hoops_ai.create_flow(
 ### Feature Engineering
 
 ```python
-# Adjust UV grid resolution
+# Adjust face discretization resolution
 def my_encoder(cad_file, cad_loader, storage):
     face_count, edge_count = flow_model.encode_cad_data(...)
     
     # Override with custom resolution
     brep_encoder = BrepEncoder(model.get_brep(), storage)
-    brep_encoder.push_facegrid(15, 15)  # Higher resolution
+    brep_encoder.push_face_discretization(pointsamples=40)  # Higher resolution
     brep_encoder.push_curvegrid(15)
 ```
 
@@ -933,7 +881,7 @@ def merge_face_predictions(predictions, adjacency_graph):
 
 **Solution:**
 ```python
-# Use BrepMFR's two-step training strategy:
+# Use two-step training strategy:
 # 1. Pre-train on synthetic data (e.g., CADSynth-AAG)
 trainer1 = FlowTrainer(...)
 checkpoint1 = trainer1.train()
@@ -997,7 +945,7 @@ Train for multiple tasks simultaneously:
 |--------|---------------------|-------------------------|
 | **Task** | Whole-model classification | Per-face classification |
 | **Output** | Single label per CAD file | Label for each face |
-| **Features** | Basic UV-grids, edges | + Extended adjacency, histograms |
+| **Features** | Face discretization, edges | + Extended adjacency, histograms |
 | **Architecture** | CNN + GNN | Transformer + GNN |
 | **Memory** | Lower | Higher (per-face predictions) |
 | **Training Time** | Faster | Slower |
@@ -1009,7 +957,8 @@ Train for multiple tasks simultaneously:
 ## Related Documentation
 
 - [Flow Model Architecture](./FlowModel_Architecture.md)
-- [GraphClassification (UV-Net)](./GraphClassification_UVNet.md)
+- [GraphClassification (Graph Classifier)](./GraphClassification.md)
+- [Acknowledgements](./Acknowledgements.md) - Attribution and citations
 - [Module Access & Encoder Documentation](./Module_Access_and_Encoder.md)
 - [Flow Documentation](./Flow_Documentation.md)
 
@@ -1017,7 +966,7 @@ Train for multiple tasks simultaneously:
 
 ## Conclusion
 
-`GraphNodeClassification` provides a production-ready wrapper around BrepMFR for CAD face-level classification tasks. Its rich feature encoding and Transformer-based architecture make it particularly suitable for complex machining feature recognition tasks.
+`GraphNodeClassification` provides a production-ready implementation of a node-level classifier for CAD face-level classification tasks. Its rich feature encoding and Transformer-based architecture make it particularly suitable for complex machining feature recognition tasks.
 
 **Key Takeaways:**
 1. Use for **per-face** classification (feature recognition, segmentation)
@@ -1037,6 +986,8 @@ Train for multiple tasks simultaneously:
 - ✅ Design style recognition
 - ✅ Part categorization
 - ✅ Faster inference required
+
+**Attribution:** This implementation is based on a third-party architecture. When publishing research using this model, please refer to [Acknowledgements.md](./Acknowledgements.md) for proper citation.
 
 ---
 

@@ -12,10 +12,10 @@ This documentation is organized into three focused documents:
 ### 1. **[FlowModel Architecture](./FlowModel_Architecture.md)** - Core Concepts
 Understanding the abstract interface, FlowTrainer/FlowInference, and design philosophy.
 
-### 2. **[GraphClassification (UV-Net)](./GraphClassification_UVNet.md)** - Graph-Level Tasks  
+### 2. **[GraphClassification (Graph Classifier)](./GraphClassification.md)** - Graph-Level Tasks  
 Whole-part classification (e.g., "bolt", "bearing", "bracket").
 
-### 3. **[GraphNodeClassification (BrepMFR)](./GraphNodeClassification_BrepMFR.md)** - Node-Level Tasks  
+### 3. **[GraphNodeClassification (Graph Node Classifier)](./GraphNodeClassification.md)** - Node-Level Tasks  
 Per-face classification (e.g., "hole", "pocket", "slot").
 
 ---
@@ -26,8 +26,8 @@ Per-face classification (e.g., "hole", "pocket", "slot").
 → Start with [FlowModel Architecture](./FlowModel_Architecture.md)
 
 **Ready to implement?**  
-→ **Part classification:** [GraphClassification](./GraphClassification_UVNet.md)  
-→ **Face segmentation:** [GraphNodeClassification](./GraphNodeClassification_BrepMFR.md)
+→ **Part classification:** [GraphClassification](./GraphClassification.md)  
+→ **Face segmentation:** [GraphNodeClassification](./GraphNodeClassification.md)
 
 **Need Flow integration examples?**  
 → See decorator patterns in both concrete implementation docs
@@ -43,20 +43,20 @@ Per-face classification (e.g., "hole", "pocket", "slot").
 - Best practices and troubleshooting
 - Third-party model licensing (MIT)
 
-### GraphClassification (UV-Net)
-- UV-Net architecture (CVPR 2021, Autodesk AI Lab)
+### GraphClassification 
+
 - Initialization with `num_classes` parameter
-- CAD encoding: 10×10 UV-grids for faces
+- CAD encoding: graph, faces sample points
 - **Flow integration with `flowtask` decorators**
 - Complete FABWAVE example (45 part classes)
 - Training and inference workflows
 
-### GraphNodeClassification (BrepMFR)
-- BrepMFR architecture (CAGD 2024, Zhang et al.)
+### GraphNodeClassification 
+
 - Initialization with Transformer hyperparameters
-- Rich encoding: extended adjacency, histograms
+- Rich encoding: extended graph adjacency, attributes, histograms
 - **Flow integration with `flowtask` decorators**
-- Complete CADSynth-AAG example (162k models)
+- Complete example (162k models from two public datasets)
 - Advanced hyperparameter tuning
 
 ---
@@ -82,10 +82,10 @@ flow_model.encode_cad_data(cad_file, cad_loader, storage)
 
 ```
 FlowModel (Abstract)
-├── GraphClassification (UV-Net)
+├── GraphClassification (Graph classifier)
 │   ├── Graph-level predictions
 │   └── Used by: FABWAVE dataset
-└── GraphNodeClassification (BrepMFR)
+└── GraphNodeClassification (Graph node classifier)
     ├── Node-level predictions
     └── Used by: CADSynth-AAG dataset
 
@@ -119,8 +119,8 @@ def my_encoder(cad_file, cad_loader, storage):
 ```
 
 See complete examples in:
-- [GraphClassification FABWAVE Example](./GraphClassification_UVNet.md#integration-with-flow-tasks)
-- [GraphNodeClassification CADSynth-AAG Example](./GraphNodeClassification_BrepMFR.md#integration-with-flow-tasks)
+- [GraphClassification FABWAVE Example](./GraphClassification.md#integration-with-flow-tasks)
+- [GraphNodeClassification CADSynth-AAG Example](./GraphNodeClassification.md#integration-with-flow-tasks)
 
 ---
 
