@@ -43,7 +43,7 @@ from hoops_ai.storage.label_storage import LabelStorage
 from hoops_ai.storage.helpers import generate_unique_id_from_path
 
 from hoops_ai.storage import DGLGraphStoreHandler
-from hoops_ai.flowmanager._flows import GraphClassification
+from hoops_ai.ml.EXPERIMENTAL import GraphClassification
 import pathlib
 
 
