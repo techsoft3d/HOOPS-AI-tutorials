@@ -1,5 +1,6 @@
-# ignore all zip files anywhere
+# ignore all zip, mp4 files anywhere
 *.zip
+*.mp4
 
 # Ignore top-level 'packages' directory and its contents
 /packages/*
