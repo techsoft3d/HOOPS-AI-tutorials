@@ -15,8 +15,15 @@ Developed in Python, it features Jupyter notebooks that guide users through prac
 
 🪪 1. Get Access first!
 
+Requirements: Python > 3.9 and MiniConda (24.x)
 Ask your TECH SOFT 3D contact to give you acces to HOOPS AI 1.0 preview.
 
+```bash
+pip install hoops-ai-installer .........(full code to be received by email)
+hoops-ai-installer install --mode cpu
+hoops-ai-installer install --mode gpu
+
+```
 
 Note: Set license in environmental variable before starting up Jupyter.
 
@@ -30,6 +37,12 @@ Open a cmd in the location of this repo. If HOOPS AI is installed, then activate
 
 ```bash
 conda activate hoops_ai_gpu
+```
+
+or
+
+```bash
+conda activate hoops_ai_cpu
 ```
 
 then run inside the environment the jupyter lab command:
