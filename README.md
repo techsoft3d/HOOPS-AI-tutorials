@@ -17,6 +17,7 @@ Developed in Python, it features Jupyter notebooks that guide users through prac
 
 Requirements: Python > 3.9 and MiniConda (24.x)
 Ask your TECH SOFT 3D contact to give you acces to HOOPS AI 1.0 preview.
+Go to: https://www.techsoft3d.com/developers/products/hoops-ai
 
 ```bash
 pip install hoops-ai-installer .........(full code to be received by email)
@@ -56,6 +57,9 @@ If you have never used jupyter notebook for python code, you can learn the basic
 https://justinbois.github.io/bootcamp/2020_fsri/lessons/l01_welcome.html
 
 Each notebook contains step-by-step instructions and annotations.
+
+visit our documentation here: https://docs.techsoft3d.com/hoops/ai/
+
 Proceed through each notebook in order, running the cells interactively.
 
 ```bash
