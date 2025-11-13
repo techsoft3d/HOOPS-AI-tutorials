@@ -4,6 +4,8 @@
 # HOOPS-AI-tutorials
 Tech Soft 3D tutorials of python CAD framework for machine learning development. Requires HOOPS AI
 
+[![HOOPS AI module presentation video](https://img.youtube.com/vi/1refiX8maBY/hqdefault.jpg)](https://www.youtube.com/watch?v=1refiX8maBY&t=15m40s "Focus on this segment of the video")
+
 
 This repository provides a collection of tutorial materials designed to help users learn and apply the HOOPS AI library.
 
