@@ -1,10 +1,14 @@
-![HOOPSAI](images/HOOPS_AI.jpg)
+![HOOPSAI](images/HOOPS-AI.png)
 
+# Documentation
+
+visit our documentation here: https://docs.techsoft3d.com/hoops/ai/
 
 # HOOPS-AI-tutorials
 Tech Soft 3D tutorials of python CAD framework for machine learning development. Requires HOOPS AI
 
-[![HOOPS AI module presentation video](https://img.youtube.com/vi/1refiX8maBY/hqdefault.jpg)](https://www.youtube.com/watch?v=1refiX8maBY&t=15m40s "Focus on this segment of the video")
+Recording of the webinar hold on November 6th. Presenting HOOPS AI, check it out!:
+[![HOOPS AI module presentation video](https://img.youtube.com/vi/1refiX8maBY/hqdefault.jpg)](https://www.youtube.com/watch?v=1refiX8maBY&t=15m40s "Explanation of HOOPS AI Modules + live demos")
 
 
 This repository provides a collection of tutorial materials designed to help users learn and apply the HOOPS AI library.
@@ -55,12 +59,7 @@ jupyter lab
 
 A browser will open with your local folder, in the environment double click the folder notebooks and follow each notebook instructions.
 
-If you have never used jupyter notebook for python code, you can learn the basics here:
-https://justinbois.github.io/bootcamp/2020_fsri/lessons/l01_welcome.html
-
 Each notebook contains step-by-step instructions and annotations.
-
-visit our documentation here: https://docs.techsoft3d.com/hoops/ai/
 
 Proceed through each notebook in order, running the cells interactively.
 
@@ -73,3 +72,5 @@ hoops_ai_tutorials/
 |___ ...
 ```
 
+If you have never used jupyter notebook for python code, you can learn the basics here:
+https://justinbois.github.io/bootcamp/2020_fsri/lessons/l01_welcome.html
