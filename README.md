@@ -22,7 +22,7 @@ Developed in Python, it features Jupyter notebooks that guide users through prac
 🪪 1. Get Access first!
 
 Requirements: Python > 3.9 and MiniConda (24.x)
-Ask your TECH SOFT 3D contact to give you acces to HOOPS AI 1.0 preview. visit https://www.techsoft3d.com/developers/products/hoops-ai
+Ask your TECH SOFT 3D contact to give you acces to HOOPS AI 1.0 preview.
 Go to: https://www.techsoft3d.com/developers/products/hoops-ai
 
 ```bash
