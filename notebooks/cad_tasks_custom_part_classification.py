@@ -88,12 +88,16 @@ def build_schema():
 
     # Manufacturing group - Core manufacturing classification data
     label_group = builder.create_group("Labels", "part", "Label group for ML supervised Tasks")
-    label_group.create_array("task_A", ["part"], "int32", "Original part category (45 classes, indexed 0-44)")
-    label_group.create_array("task_B", ["part"], "int32", "Simplified part category (5 groups, indexed 1-5)")
+    label_group.create_array("task_A", ["part"], "int32", "Original A part category (45 classes, indexed 0-44)")
+    label_group.create_array("task_B", ["part"], "int32", "Original B part category (5 groups, indexed 0-44)")
+    label_group.create_array("task_C", ["part"], "int32", "Simplified C part category (45 classes, indexed 0-4)")
+    label_group.create_array("task_D", ["part"], "int32", "Simplified D part category (5 groups, indexed 0-4)")
 
     # Define metadata routing
-    builder.define_categorical_metadata('task_A_description', 'str', 'Original detailed part category name')
-    builder.define_categorical_metadata('task_B_description', 'str', 'Simplified part category group name')
+    builder.define_categorical_metadata('task_A_description', 'str', 'Original A detailed part category name')
+    builder.define_categorical_metadata('task_B_description', 'str', 'Original B part category group name')
+    builder.define_categorical_metadata('task_C_description', 'str', 'Simplified C detailed part category name')
+    builder.define_categorical_metadata('task_D_description', 'str', 'Simplified D part category group name')
     builder.set_metadata_routing_rules(
         categorical_patterns=['task_A_description', 'task_B_description', 'category', 'type']
     )
@@ -189,25 +193,26 @@ description_to_code = {v["name"]: k for k, v in labels_description.items()}
 # second labeling but group instead of individual type:
 
 # Simplified 5-group classification
+# Simplified 5-group classification
 label_to_simplified = {
-    # Group 1: Fasteners (12 categories)
-    1: 1, 8: 1, 9: 1, 11: 1, 12: 1, 14: 1, 21: 1, 22: 1, 25: 1, 27: 1, 31: 1, 36: 1,
-    # Group 2: Seals & Damping (7 categories)
-    3: 2, 4: 2, 6: 2, 7: 2, 13: 2, 23: 2, 37: 2,
-    # Group 3: Bearings & Shafts (8 categories)
-    0: 3, 5: 3, 10: 3, 18: 3, 19: 3, 20: 3, 26: 3, 44: 3,
-    # Group 4: Gears & Transmission (7 categories)
-    29: 4, 30: 4, 32: 4, 33: 4, 34: 4, 35: 4, 39: 4,
-    # Group 5: Structural & Piping (11 categories)
-    2: 5, 15: 5, 16: 5, 17: 5, 24: 5, 28: 5, 38: 5, 40: 5, 41: 5, 42: 5, 43: 5
+    # Group 0: Fasteners (12 categories)
+    1: 0, 8: 0, 9: 0, 11: 0, 12: 0, 14: 0, 21: 0, 22: 0, 25: 0, 27: 0, 31: 0, 36: 0,
+    # Group 1: Seals & Damping (7 categories)
+    3: 1, 4: 1, 6: 1, 7: 1, 13: 1, 23: 1, 37: 1,
+    # Group 2: Bearings & Shafts (8 categories)
+    0: 2, 5: 2, 10: 2, 18: 2, 19: 2, 20: 2, 26: 2, 44: 2,
+    # Group 3: Gears & Transmission (7 categories)
+    29: 3, 30: 3, 32: 3, 33: 3, 34: 3, 35: 3, 39: 3,
+    # Group 4: Structural & Piping (11 categories)
+    2: 4, 15: 4, 16: 4, 17: 4, 24: 4, 28: 4, 38: 4, 40: 4, 41: 4, 42: 4, 43: 4
 }
 
 simplified_groups = {
-    1: "Fasteners", 2: "Seals_Damping", 3: "Bearings_Shafts", 
-    4: "Gears_Transmission", 5: "Structural_Piping"
+    0: "Fasteners", 1: "Seals_Damping", 2: "Bearings_Shafts", 
+    3: "Gears_Transmission", 4: "Structural_Piping"
 }
 
-print(f"Simplified mapping: 45 → 5 categories (indexed 1-5)")
+#print(f"Simplified mapping: 45 → 5 categories (indexed 0-4)")
 
 
 
@@ -218,25 +223,67 @@ print(f"Simplified mapping: 45 → 5 categories (indexed 1-5)")
     parallel_execution=True
 )
 def gather_fabwave_files(source: str) -> List[str]:
-    """Gather CAD files from source directory - simplified for testing"""
-
-    # Example 1: Basic retrieval with format filtering
+    """Gather CAD files ensuring at least 3 samples from each of the 45 original categories"""
+    
+    import random
+    from collections import defaultdict
+    
+    # Retrieve all available files
     retriever = CADFileRetriever(
         storage_provider=LocalStorageProvider(directory_path=source),
         formats=[".stp", ".step", ".iges", ".igs"],
-        #filter_pattern="*5*"  # Only files with "5" in name
     )
-            
-    # Get files using the library's retriever
+    
     source_files = retriever.get_file_list()
     
-    # Shuffle to get random sample instead of first N files in order
-    import random
-    random.seed(42)  # For reproducibility
-    shuffled_files = source_files.copy()
-    random.shuffle(shuffled_files)
+    # Group files by their original category (45 classes)
+    files_by_category = defaultdict(list)
     
-    return shuffled_files
+    for file_path in source_files:
+        folder_name = str(pathlib.Path(file_path).parent.parent.stem)
+        label_code = description_to_code.get(folder_name)
+        if label_code is not None:
+            files_by_category[label_code].append(file_path)
+    
+    # Sample at least 3 files from each of the 45 categories
+    random.seed(42)
+    sampled_files = []
+    remaining_files = []
+    
+    min_samples_per_category = 3
+    categories_found = len(files_by_category)
+    
+    for label_code in range(45):  # Ensure all 45 categories are checked
+        category_files = files_by_category.get(label_code, [])
+        if category_files:
+            # Take minimum samples for guaranteed representation
+            sample_size = min(min_samples_per_category, len(category_files))
+            samples = random.sample(category_files, sample_size)
+            sampled_files.extend(samples)
+            
+            # Add remaining files to pool for random sampling
+            remaining = [f for f in category_files if f not in samples]
+            remaining_files.extend(remaining)
+        else:
+            category_name = labels_description.get(label_code, {}).get("name", f"Category {label_code}")
+            print(f"WARNING: No files found for category {label_code} ({category_name})")
+    
+    # Fill up to target size (i.e 1000) with random samples from remaining files
+    target_size = 200
+    already_sampled = len(sampled_files)
+    additional_needed = max(0, target_size - already_sampled)
+    
+    if additional_needed > 0 and remaining_files:
+        random.shuffle(remaining_files)
+        sampled_files.extend(remaining_files[:additional_needed])
+    
+    # Final shuffle for randomness
+    random.shuffle(sampled_files)
+    
+    print(f"Sampled {len(sampled_files)} files from {categories_found} categories")
+    print(f"Guaranteed: {min_samples_per_category} samples per category")
+    
+    return sampled_files
 
 
 ## Use the HOOPS AI directly integrated GraphClassification Model
@@ -271,7 +318,7 @@ def encode_data_for_ml_training(cad_file: str, cad_loader :  HOOPSLoader, storag
     
     # Add label data
     folder_with_name = str(pathlib.Path(cad_file).parent.parent.stem)
-    label_code = description_to_code.get(folder_with_name, None)
+    label_code = int(description_to_code.get(folder_with_name, None))
     
     # Validate label_code - skip if unknown category
     if label_code is None:
@@ -280,7 +327,7 @@ def encode_data_for_ml_training(cad_file: str, cad_loader :  HOOPSLoader, storag
     label_description = [{int(label_code) : labels_description[label_code]["name"]} ]
     
     # Compute simplified label using the mapping
-    simplified_label = label_to_simplified.get(label_code, None)
+    simplified_label = int(label_to_simplified.get(label_code, None))
     if simplified_label is None:
         raise ValueError(f"Label code {label_code} not found in label_to_simplified mapping for file {cad_file}.")
     
@@ -288,7 +335,9 @@ def encode_data_for_ml_training(cad_file: str, cad_loader :  HOOPSLoader, storag
     
     # Save label data in the schema-defined group for dataset analytics
     storage.save_metadata("task_A_description", folder_with_name)
-    storage.save_metadata("task_B_description", simplified_label_name)
+    storage.save_metadata("task_B_description", folder_with_name)
+    storage.save_metadata("task_C_description", simplified_label_name)
+    storage.save_metadata("task_D_description", simplified_label_name)
     
     # ALSO save label using the key expected by GraphClassification.convert_encoded_data_to_graph
     # This is required for the DGL graph files to have the correct labels
@@ -296,8 +345,12 @@ def encode_data_for_ml_training(cad_file: str, cad_loader :  HOOPSLoader, storag
     #storage.save_data("Labels/part_label", np.array([label_code]))
     
     ## EXTRA data that we will use also for training
+    # task_A and task_B: Both use original 45 classes (0-44) - should produce identical results
     storage.save_data("Labels/task_A", np.array([label_code]))
-    storage.save_data("Labels/task_B", np.array([simplified_label]))
+    storage.save_data("Labels/task_B", np.array([label_code]))
+    # task_C and task_D: Both use simplified 5 groups (0-4) - should produce identical results
+    storage.save_data("Labels/task_C", np.array([simplified_label]))
+    storage.save_data("Labels/task_D", np.array([simplified_label]))
 
     
     
@@ -314,6 +367,8 @@ def encode_data_for_ml_training(cad_file: str, cad_loader :  HOOPSLoader, storag
     #dgl_storage.append_extra_data(storage.load_data("Labels/part_label"), feature_name="part_label", torch_type=torch.long)
     dgl_storage.append_extra_data(storage.load_data("Labels/task_A"), feature_name="task_A", torch_type=torch.long)
     dgl_storage.append_extra_data(storage.load_data("Labels/task_B"), feature_name="task_B", torch_type=torch.long)
+    dgl_storage.append_extra_data(storage.load_data("Labels/task_C"), feature_name="task_C", torch_type=torch.long)
+    dgl_storage.append_extra_data(storage.load_data("Labels/task_D"), feature_name="task_D", torch_type=torch.long)
 
     
     custom_graph_classification.convert_encoded_data_to_graph(storage, dgl_storage, str(dgl_output_path))
