@@ -1,0 +1,56 @@
+{
+  "version": "1.0",
+  "domain": "Manufacturing_Analysis",
+  "groups": {
+    "Labels": {
+      "primary_dimension": "part",
+      "arrays": {
+        "task_A": {
+          "dims": [
+            "part"
+          ],
+          "dtype": "int32",
+          "description": "Original part category (45 classes, indexed 0-44)"
+        },
+        "task_B": {
+          "dims": [
+            "part"
+          ],
+          "dtype": "int32",
+          "description": "Simplified part category (5 groups, indexed 1-5)"
+        }
+      },
+      "description": "Label group for ML supervised Tasks"
+    }
+  },
+  "description": "Minimal schema for manufacturing classification",
+  "metadata": {
+    "metadata": {
+      "file_level": {},
+      "categorical": {
+        "task_A_description": {
+          "dtype": "str",
+          "required": false,
+          "description": "Original detailed part category name"
+        },
+        "task_B_description": {
+          "dtype": "str",
+          "required": false,
+          "description": "Simplified part category group name"
+        }
+      },
+      "routing_rules": {
+        "file_level_patterns": [],
+        "categorical_patterns": [
+          "task_A_description",
+          "task_B_description",
+          "category",
+          "type"
+        ],
+        "default_numeric": "file_level",
+        "default_categorical": "categorical",
+        "default_string": "categorical"
+      }
+    }
+  }
+}
