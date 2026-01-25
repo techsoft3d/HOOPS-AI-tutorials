@@ -163,7 +163,7 @@ def gather_fabwave_files(source: str) -> List[str]:
     shuffled_files = source_files.copy()
     random.shuffle(shuffled_files)
     
-    return shuffled_files
+    return shuffled_files #[:100]
 
 
 ## Use the HOOPS AI directly integrated GraphClassification Model
@@ -172,7 +172,7 @@ nb_dir = pathlib.Path.cwd()
 flows_outputdir = nb_dir.joinpath("out")
 
 def get_flow_name():
-    return "ETL_Fabwave_training"
+    return "ETL_Fabwave_training_b2"
 
 flow_name = get_flow_name()
 my_workflow_for_fabewave = GraphClassification(num_classes=45, result_dir= str(pathlib.Path(flows_outputdir).joinpath("flows").joinpath(flow_name)))

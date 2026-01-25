@@ -17,3 +17,6 @@
 
 # Ignore training_errors.log files anywhere
 **/training_errors.log
+
+#ignore private notebooks
+/private_notebooks

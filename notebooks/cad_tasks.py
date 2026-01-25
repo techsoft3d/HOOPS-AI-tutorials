@@ -122,8 +122,23 @@ def encode_manufacturing_data(cad_file: str, cad_loader: HOOPSLoader, storage: D
     
     # Extract geometric features using BrepEncoder
     brep_encoder = BrepEncoder(cad_model.get_brep(), storage)
-    brep_encoder.push_face_indices()
-    brep_encoder.push_face_attributes()
+    
+     # Topology & Graph
+    graph = brep_encoder.push_face_adjacency_graph()
+    extended_adj = brep_encoder.push_extended_adjacency()
+    neighbors_count = brep_encoder.push_face_neighbors_count()
+    edge_paths = brep_encoder.push_face_pair_edges_path(max_allow_edge_length=16)
+    
+    # Geometric Indices & Attributes
+    face_attrs, face_types_dict = brep_encoder.push_face_attributes()
+    face_discretization = brep_encoder.push_face_discretization(pointsamples=100)
+    edge_attrs, edge_types_dict = brep_encoder.push_edge_attributes()
+    curve_grids = brep_encoder.push_curvegrid(ugrid=10)
+
+    # Face-Pair Histograms
+    distance_hists = brep_encoder.push_average_face_pair_distance_histograms(grid=10, num_bins=64)
+    angle_hists = brep_encoder.push_average_face_pair_angle_histograms(grid=10, num_bins=64)
+    
     
     # Generate manufacturing classification data
     file_basename = os.path.basename(cad_file)
