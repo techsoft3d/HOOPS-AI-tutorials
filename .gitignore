@@ -20,3 +20,5 @@
 
 #ignore private notebooks
 /private_notebooks
+
+**/.hoops_embeddings_temp

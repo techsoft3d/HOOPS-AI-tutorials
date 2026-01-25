@@ -38,7 +38,7 @@ Note: Set license in environmental variable before starting up Jupyter.
 
 Download the input data for the notebooks
 ### Fetch test files for the tutorials - Require password to be received by email
-Go to: https://transfer.techsoft3d.com/link/uu80PL9LRSyasrOuyBLNKL
+Go to: https://transfer.techsoft3d.com/link/dPQ3CdSiS1HbQLC2QtjEsl
 ### Activate the development environment
 Open a cmd in the location of this repo. If HOOPS AI is installed, then activate the environment of you choice (cpu or gpu):
 
