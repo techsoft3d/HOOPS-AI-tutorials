@@ -22,3 +22,7 @@
 /private_notebooks
 
 **/.hoops_embeddings_temp
+**.faiss
+**.meta
+**/too_heavy_files.log
+**/error_summary.json
