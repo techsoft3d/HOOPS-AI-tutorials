@@ -8,7 +8,7 @@ see what is new here: https://docs.techsoft3d.com/hoops/ai/resources/release_not
 visit our documentation here: https://docs.techsoft3d.com/hoops/ai/
 
 # HOOPS-AI-tutorials
-Tech Soft 3D tutorials of python CAD framework for machine learning development. Requires HOOPS AI
+Tech Soft 3D tutorials of python CAD framework for machine learning development - HOOPS AI
 
 Recording of the webinar hold on November 6th. Presenting HOOPS AI, check it out!:
 [![HOOPS AI module presentation video](https://img.youtube.com/vi/1refiX8maBY/hqdefault.jpg)](https://www.youtube.com/watch?v=1refiX8maBY&t=15m40s "Explanation of HOOPS AI Modules + live demos")
@@ -35,7 +35,7 @@ hoops-ai-installer install --mode gpu
 
 ```
 
-Note: Set license in environmental variable before starting up Jupyter.
+Note: You will need to set your HOOPS AI license to execute the notebooks
 
 ## Running the Notebooks
 
