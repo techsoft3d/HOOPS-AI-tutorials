@@ -25,7 +25,7 @@ from hoops_ai.storage.datastorage.data_storage_handler_base import DataStorage
 from hoops_ai.storage.graphstorage.graph_storage_handler import MLStorage
 from hoops_ai.storage.label_storage import LabelStorage
 from hoops_ai.cadaccess.cad_loader import CADLoader
-from hoops_ai.cadaccess.hoops_exchange.hoops_access import HOOPSTools
+from hoops_ai.cadaccess import HOOPSTools
 from hoops_ai.cadencoder.brep_encoder import BrepEncoder
 from hoops_ai.storage.datastorage.zarr_storage_handler import OptStorage
 from hoops_ai.storage.metric_storage import MetricStorage
