@@ -55,7 +55,7 @@ def gather_cad_files(source: str) -> List[str]:
     shuffled_files = source_files.copy()
     random.shuffle(shuffled_files)
     
-    return shuffled_files[:200]
+    return shuffled_files
 
 
 nb_dir = pathlib.Path.cwd()

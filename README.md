@@ -1,5 +1,8 @@
 ![HOOPSAI](images/HOOPS-AI.png)
 
+# HOOPS AI 1.0-b2 release on: February 2nd, 2026
+see what is new here: https://docs.techsoft3d.com/hoops/ai/resources/release_notes/index.html
+
 # Documentation
 
 visit our documentation here: https://docs.techsoft3d.com/hoops/ai/
@@ -22,7 +25,7 @@ Developed in Python, it features Jupyter notebooks that guide users through prac
 🪪 1. Get Access first!
 
 Requirements: Python > 3.9 and MiniConda (24.x)
-Ask your TECH SOFT 3D contact to give you acces to HOOPS AI 1.0 preview.
+Ask your TECH SOFT 3D contact to give you acces to HOOPS AI 1.0 beta-2 preview.
 Go to: https://www.techsoft3d.com/developers/products/hoops-ai
 
 ```bash
@@ -38,7 +41,10 @@ Note: Set license in environmental variable before starting up Jupyter.
 
 Download the input data for the notebooks
 ### Fetch test files for the tutorials - Require password to be received by email
-Go to: https://transfer.techsoft3d.com/link/dPQ3CdSiS1HbQLC2QtjEsl
+Go to: https://transfer.techsoft3d.com/link/dc8ogpj5B7S6U3iZIC6pcG
+
+extract the zip and name this packages. 
+
 ### Activate the development environment
 Open a cmd in the location of this repo. If HOOPS AI is installed, then activate the environment of you choice (cpu or gpu):
 
