@@ -346,11 +346,11 @@ def encode_data_for_ml_training(cad_file: str, cad_loader :  HOOPSLoader, storag
     
     ## EXTRA data that we will use also for training
     # task_A and task_B: Both use original 45 classes (0-44) - should produce identical results
-    storage.save_data("Labels/task_A", np.array([label_code]))
-    storage.save_data("Labels/task_B", np.array([label_code]))
+    storage.save_data("Labels/task_A", np.array([label_code], dtype=np.int32))
+    storage.save_data("Labels/task_B", np.array([label_code],dtype=np.int32))
     # task_C and task_D: Both use simplified 5 groups (0-4) - should produce identical results
-    storage.save_data("Labels/task_C", np.array([simplified_label]))
-    storage.save_data("Labels/task_D", np.array([simplified_label]))
+    storage.save_data("Labels/task_C", np.array([simplified_label],dtype=np.int32))
+    storage.save_data("Labels/task_D", np.array([simplified_label],dtype=np.int32))
 
     
     

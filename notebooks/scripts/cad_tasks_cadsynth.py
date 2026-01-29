@@ -52,11 +52,11 @@ import pathlib
 # LICENSE SETUP - Must be set at module level for ProcessPoolExecutor
 # ============================================================================
 # CRITICAL: Worker processes need the license configured when they import this module
-license_key = os.getenv("HOOPS_AI_LICENSE")
-if license_key:
-    hoops_ai.set_license(license_key, validate=False)
-else:
-    print("WARNING: HOOPS_AI_LICENSE environment variable not set in cad_tasks.py")
+#license_key = os.getenv("HOOPS_AI_LICENSE")
+#if license_key:
+#    hoops_ai.set_license(license_key, validate=False)
+#else:
+#    print("WARNING: HOOPS_AI_LICENSE environment variable not set in cad_tasks.py")
 # ============================================================================
 
 
@@ -72,7 +72,7 @@ builder = SchemaBuilder(
 
 # Manufacturing group - Core manufacturing classification data
 label_group = builder.create_group("Labels", "faces", "Label group for ML supervised Tasks")
-label_group.create_array("face_labels", ["faces"], "int32", "MFR label category integer (0-24)")
+label_group.create_array("face_labels", ["faces"], "int64", "MFR label category integer (0-24)")
 
 cad_schema = builder.build()
 # ============================================================================
@@ -181,17 +181,25 @@ def encode_data_for_ml_training(cad_file: str, cad_loader :  HOOPSLoader, storag
         data = json.load(f)
     label_codes = data.get("labels", [])
     
+    # CRITICAL: Validate that label count matches face count
+    if len(label_codes) != facecount:
+        error_msg = (
+            f"Label count mismatch for {file_name}: "
+            f"JSON has {len(label_codes)} labels but CAD file has {facecount} faces. "
+            f"JSON path: {label_file}"
+        )
+        raise ValueError(error_msg)
     
-    
-    
+    # Convert to numpy array and check what we're about to save
+    label_array = np.array(label_codes, dtype=np.int32)
     
     # Save label data in the schema-defined group for dataset analytics
-    storage.save_data("Labels/face_labels", np.array(label_codes))
+    storage.save_data("Labels/face_labels", label_array)
 
     
     # ALSO save label using the key expected by GraphClassification.convert_encoded_data_to_graph
     # This is required for the DGL graph files to have the correct labels
-    storage.save_data("face_labels", np.array(label_codes))
+    storage.save_data("face_labels", label_array)
     
     #
     dgl_storage = DGLGraphStoreHandler()

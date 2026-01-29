@@ -20,6 +20,7 @@
 
 #ignore private notebooks
 /private_notebooks
+/packagesb1
 
 **/.hoops_embeddings_temp
 **.faiss
