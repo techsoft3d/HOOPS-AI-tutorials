@@ -1,6 +1,7 @@
 ![HOOPSAI](images/HOOPS-AI.png)
 
-# HOOPS AI 1.0-b2 release on: February 2nd, 2026
+# HOOPS AI 1.0-b2 release on: February 8th, 2026
+
 see what is new here: https://docs.techsoft3d.com/hoops/ai/resources/release_notes/index.html
 
 # Documentation
