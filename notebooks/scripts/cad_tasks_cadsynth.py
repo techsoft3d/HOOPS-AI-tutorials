@@ -127,7 +127,7 @@ def gather_cadsynth_files(source: str) -> List[str]:
     shuffled_files = source_files.copy()
     random.shuffle(shuffled_files)
     
-    return shuffled_files[:10000]
+    return shuffled_files
 
 
 ## Use the HOOPS AI directly integrated GraphClassification Model
