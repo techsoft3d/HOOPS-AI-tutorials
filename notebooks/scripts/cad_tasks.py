@@ -41,18 +41,6 @@ from hoops_ai.storage.datasetstorage.schema_builder import SchemaBuilder
 
 
 # ============================================================================
-# LICENSE SETUP - Must be set at module level for ProcessPoolExecutor
-# ============================================================================
-# CRITICAL: Worker processes need the license configured when they import this module
-license_key = hoops_ai.use_test_license()
-if license_key:
-    hoops_ai.set_license(license_key, validate=False)
-else:
-    print("WARNING: HOOPS_AI_LICENSE environment variable not set in cad_tasks.py")
-# ============================================================================
-
-
-# ============================================================================
 # SCHEMA DEFINITION - Must be defined at module level for ProcessPoolExecutor
 # ============================================================================
 # Define minimal CAD schema for manufacturing data
@@ -122,6 +110,8 @@ def encode_manufacturing_data(cad_file: str, cad_loader: HOOPSLoader, storage: D
     
     # Extract geometric features using BrepEncoder
     brep_encoder = BrepEncoder(cad_model.get_brep(), storage)
+    brep_encoder_live = BrepEncoder(cad_model.get_brep())
+    graph_data = brep_encoder_live.push_face_adjacency_graph()
     
      # Topology & Graph
     graph = brep_encoder.push_face_adjacency_graph()

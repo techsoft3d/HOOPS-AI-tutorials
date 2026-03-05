@@ -19,17 +19,6 @@ from hoops_ai.ml.EXPERIMENTAL import EmbeddingFlowModel
 import pathlib
 
 
-# ============================================================================
-# LICENSE SETUP - Must be set at module level for ProcessPoolExecutor
-# ============================================================================
-# CRITICAL: Worker processes need the license configured when they import this module
-license_key = os.getenv("HOOPS_AI_LICENSE")
-if license_key:
-    hoops_ai.set_license(license_key, validate=False)
-else:
-    print("WARNING: HOOPS_AI_LICENSE environment variable not set in cad_tasks.py")
-# ============================================================================
-
 @flowtask.extract(
     name="Gather CAD files from datasources",
     inputs=["cad_datasources"],
@@ -62,7 +51,7 @@ nb_dir = pathlib.Path.cwd()
 flows_outputdir = nb_dir.joinpath("out")
 
 def get_flow_name():
-    return "HOOPS Embedding Training"
+    return "HOOPS_Embedding_Training"
 
 flow_name = get_flow_name()
 EmbeddingModel = EmbeddingFlowModel(result_dir= str(pathlib.Path(flows_outputdir).joinpath("flows").joinpath(flow_name)),
@@ -96,9 +85,6 @@ def encode_data_for_ml_training(cad_file: str, cad_loader :  HOOPSLoader, storag
     # Save file-level metadata (will be routed to .infoset)
     storage.save_metadata("Item", str(cad_file))
     storage.save_metadata("source", "FABWAVE")
-    
-    # Compress the storage into a .data file
-    storage.compress_store()
     
     # Return the base storage path
     return storage.get_file_path("")

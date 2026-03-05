@@ -48,16 +48,6 @@ import pathlib
 
 
 # ============================================================================
-# LICENSE SETUP - Must be set at module level for ProcessPoolExecutor
-# ============================================================================
-# CRITICAL: Worker processes need the license configured when they import this module
-license_key = hoops_ai.use_test_license()
-if license_key:
-    hoops_ai.set_license(license_key, validate=False)
-else:
-    print("WARNING: HOOPS_AI_LICENSE environment variable not set in cad_tasks.py")
-
-# ============================================================================
 # SCHEMA DEFINITION - Must be defined at module level for ProcessPoolExecutor
 # ============================================================================
 # Define minimal CAD schema for manufacturing data
@@ -161,7 +151,7 @@ def gather_fabwave_files(source: str) -> List[str]:
     shuffled_files = source_files.copy()
     random.shuffle(shuffled_files)
     
-    return shuffled_files #[:100]
+    return shuffled_files[:1500]
 
 
 ## Use the HOOPS AI directly integrated GraphClassification Model
