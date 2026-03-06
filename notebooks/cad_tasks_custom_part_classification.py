@@ -283,7 +283,21 @@ def get_flow_name():
     return "ETL_Multi_Y_Part_Classification"
 
 flow_name = get_flow_name()
-custom_graph_classification = CustomGraphClassification(num_classes=45, result_dir= str(pathlib.Path(flows_outputdir).joinpath("flows").joinpath(flow_name)))
+
+# Lazy initialization: defer model creation to avoid heavy imports at module load time.
+# On Windows, ProcessPoolExecutor workers re-import this module; instantiating
+# the model here would trigger torch/DGL/pytorch_lightning init and exceed the
+# worker timeout before the actual task even starts.
+_custom_graph_classification = None
+
+def _get_custom_graph_classification():
+    global _custom_graph_classification
+    if _custom_graph_classification is None:
+        _custom_graph_classification = CustomGraphClassification(
+            num_classes=45,
+            result_dir=str(pathlib.Path(flows_outputdir).joinpath("flows").joinpath(flow_name))
+        )
+    return _custom_graph_classification
 
 
 # ============================================================================
@@ -302,7 +316,7 @@ def encode_data_for_ml_training(cad_file: str, cad_loader :  HOOPSLoader, storag
     cad_model = cad_loader.create_from_file(cad_file)
     storage.set_schema(cad_schema)
 
-    facecount, edgecount = custom_graph_classification.encode_cad_data(cad_file, cad_loader, storage)
+    facecount, edgecount = _get_custom_graph_classification().encode_cad_data(cad_file, cad_loader, storage)
     
     # Add label data
     folder_with_name = str(pathlib.Path(cad_file).parent.parent.stem)
@@ -359,7 +373,7 @@ def encode_data_for_ml_training(cad_file: str, cad_loader :  HOOPSLoader, storag
     dgl_storage.append_extra_data(storage.load_data("Labels/task_D"), feature_name="task_D", torch_type=torch.long)
 
     
-    custom_graph_classification.convert_encoded_data_to_graph(storage, dgl_storage, str(dgl_output_path))
+    _get_custom_graph_classification().convert_encoded_data_to_graph(storage, dgl_storage, str(dgl_output_path))
     
     # Save file-level metadata (will be routed to .infoset)
     storage.save_metadata("Item", str(cad_file))
