@@ -40,7 +40,7 @@ from hoops_ai.storage import DataStorage
 from hoops_ai.storage.datasetstorage.schema_builder import SchemaBuilder
 
 
-hoops_ai.set_license(hoops_ai.use_test_license(), validate=False)
+hoops_ai.set_license(hoops_ai.use_test_license(), validate=False, silent= True)
 # ============================================================================
 # SCHEMA DEFINITION - Must be defined at module level for ProcessPoolExecutor
 # ============================================================================

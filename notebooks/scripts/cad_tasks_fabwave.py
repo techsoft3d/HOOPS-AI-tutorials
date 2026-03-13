@@ -46,6 +46,7 @@ from hoops_ai.storage import DGLGraphStoreHandler
 from hoops_ai.ml.EXPERIMENTAL import GraphClassification
 import pathlib
 
+hoops_ai.set_license(hoops_ai.use_test_license(), validate=False, silent= True)
 
 # ============================================================================
 # SCHEMA DEFINITION - Must be defined at module level for ProcessPoolExecutor

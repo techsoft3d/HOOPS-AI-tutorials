@@ -1,6 +1,6 @@
 ![HOOPSAI](images/HOOPS-AI.png)
 
-# HOOPS AI 1.0-b2 release on: February 8th, 2026
+# HOOPS AI 1.0 release on: March 31th, 2026
 
 see what is new here: https://docs.techsoft3d.com/hoops/ai/resources/release_notes/index.html
 
@@ -42,7 +42,7 @@ Note: You will need to set your HOOPS AI license to execute the notebooks
 
 Download the input data for the notebooks
 ### Fetch test files for the tutorials - Require password to be received by email
-Go to: https://transfer.techsoft3d.com/link/dc8ogpj5B7S6U3iZIC6pcG
+Go to: https://transfer.techsoft3d.com/link/KQTgpzP9tRFBHCuzhm4nu2
 
 extract the zip and name this packages. 
 

@@ -18,6 +18,7 @@ from hoops_ai.storage import DGLGraphStoreHandler
 from hoops_ai.ml.EXPERIMENTAL import EmbeddingFlowModel
 import pathlib
 
+hoops_ai.set_license(hoops_ai.use_test_license(), validate=False, silent= True)
 
 @flowtask.extract(
     name="Gather CAD files from datasources",
