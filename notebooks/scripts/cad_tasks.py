@@ -27,6 +27,7 @@ Usage in notebooks:
 """
 
 import os
+import sys
 import glob
 import random
 from typing import List
@@ -40,18 +41,12 @@ from hoops_ai.storage import DataStorage
 from hoops_ai.storage.datasetstorage.schema_builder import SchemaBuilder
 
 
-# ============================================================================
-# LICENSE SETUP - Must be set at module level for ProcessPoolExecutor
-# ============================================================================
-# CRITICAL: Worker processes need the license configured when they import this module
-license_key = hoops_ai.use_test_license()
-if license_key:
-    hoops_ai.set_license(license_key, validate=False)
-else:
-    print("WARNING: HOOPS_AI_LICENSE environment variable not set in cad_tasks.py")
-# ============================================================================
+license_key = os.environ.get("HOOPS_AI_LICENSE")
+if not license_key:
+    sys.exit("HOOPS_AI_LICENSE environment variable is required.")
 
-
+print("\n[OK] Using HOOPS_AI_LICENSE from environment variable")
+hoops_ai.set_license(license_key, validate=True, silent=True)
 # ============================================================================
 # SCHEMA DEFINITION - Must be defined at module level for ProcessPoolExecutor
 # ============================================================================
@@ -85,7 +80,7 @@ cad_schema = builder.build()
     parallel_execution=True
 )
 def gather_files(source: str) -> List[str]:
-    """Custom implementation of Data ingestion
+    """Custom data-ingestion implementation.
     """
     # Use simple glob pattern matching for ProcessPoolExecutor compatibility
     patterns = ["*.stp", "*.step", "*.iges", "*.igs"]
@@ -107,7 +102,7 @@ def gather_files(source: str) -> List[str]:
     parallel_execution=True
 )
 def encode_manufacturing_data(cad_file: str, cad_loader: HOOPSLoader, storage: DataStorage) -> str:
-    """custom implementation of a flowtask.transform
+    """Custom implementation of a flowtask transform.
     """
     # Load CAD model using the process-local HOOPSLoader
     cad_model = cad_loader.create_from_file(cad_file)
@@ -122,6 +117,8 @@ def encode_manufacturing_data(cad_file: str, cad_loader: HOOPSLoader, storage: D
     
     # Extract geometric features using BrepEncoder
     brep_encoder = BrepEncoder(cad_model.get_brep(), storage)
+    brep_encoder_live = BrepEncoder(cad_model.get_brep())
+    graph_data = brep_encoder_live.push_face_adjacency_graph()
     
      # Topology & Graph
     graph = brep_encoder.push_face_adjacency_graph()

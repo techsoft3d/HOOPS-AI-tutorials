@@ -27,6 +27,7 @@ Usage in notebooks:
 """
 
 import os
+import sys
 import glob
 import random
 from typing import List
@@ -46,16 +47,12 @@ from hoops_ai.storage import DGLGraphStoreHandler
 from hoops_ai.ml.EXPERIMENTAL import GraphClassification
 import pathlib
 
+license_key = os.environ.get("HOOPS_AI_LICENSE")
+if not license_key:
+    sys.exit("HOOPS_AI_LICENSE environment variable is required.")
 
-# ============================================================================
-# LICENSE SETUP - Must be set at module level for ProcessPoolExecutor
-# ============================================================================
-# CRITICAL: Worker processes need the license configured when they import this module
-license_key = hoops_ai.use_test_license()
-if license_key:
-    hoops_ai.set_license(license_key, validate=False)
-else:
-    print("WARNING: HOOPS_AI_LICENSE environment variable not set in cad_tasks.py")
+print("\n[OK] Using HOOPS_AI_LICENSE from environment variable")
+hoops_ai.set_license(license_key, validate=True, silent=True)
 
 # ============================================================================
 # SCHEMA DEFINITION - Must be defined at module level for ProcessPoolExecutor
@@ -85,22 +82,22 @@ cad_schema = builder.build()
 # LABELS DESCRIPTION - Part classification labels
 # ============================================================================
 labels_description = {
-        0: {"name": "Bearings"              , "description": " fabewave dataset sample  "},
-        1: {"name": "Bolts"                 , "description": " fabewave dataset sample  "},
-        2: {"name": "Brackets"              , "description": " fabewave dataset sample  "},
-        3: {"name": "Bushing"               , "description": " fabewave dataset sample  "},
-        4: {"name": "Bushing_Damping_Liners", "description": " fabewave dataset sample  "},
-        5: {"name": "Collets"               , "description": " fabewave dataset sample  "},
-        6: {"name": "Gasket"                , "description": " fabewave dataset sample  "},
-        7: {"name": "Grommets"              , "description": " fabewave dataset sample  "},
-        8: {"name": "HeadlessScrews"        , "description": " fabewave dataset sample  "},
-        9: {"name": "Hex_Head_Screws"       , "description": " fabewave dataset sample  "},
-        10: {"name": "Keyway_Shaft"         , "description": " fabewave dataset sample  "},
-        11: {"name": "Machine_Key"          , "description": " fabewave dataset sample  "},
-        12: {"name": "Nuts"                 , "description": " fabewave dataset sample  "},
-        13: {"name": "O_Rings"              , "description": " fabewave dataset sample  "},
-        14: {"name": "Thumb_Screws"        , "description": " fabewave dataset sample   "},
-        15: {"name": "Pipe_Fittings"        , "description": " fabewave dataset sample   "},
+    0: {"name": "Bearings"              , "description": "FabWave dataset sample."},
+    1: {"name": "Bolts"                 , "description": "FabWave dataset sample."},
+    2: {"name": "Brackets"              , "description": "FabWave dataset sample."},
+    3: {"name": "Bushing"               , "description": "FabWave dataset sample."},
+    4: {"name": "Bushing_Damping_Liners", "description": "FabWave dataset sample."},
+    5: {"name": "Collets"               , "description": "FabWave dataset sample."},
+    6: {"name": "Gasket"                , "description": "FabWave dataset sample."},
+    7: {"name": "Grommets"              , "description": "FabWave dataset sample."},
+    8: {"name": "HeadlessScrews"        , "description": "FabWave dataset sample."},
+    9: {"name": "Hex_Head_Screws"       , "description": "FabWave dataset sample."},
+    10: {"name": "Keyway_Shaft"         , "description": "FabWave dataset sample."},
+    11: {"name": "Machine_Key"          , "description": "FabWave dataset sample."},
+    12: {"name": "Nuts"                 , "description": "FabWave dataset sample."},
+    13: {"name": "O_Rings"              , "description": "FabWave dataset sample."},
+    14: {"name": "Thumb_Screws"         , "description": "FabWave dataset sample."},
+    15: {"name": "Pipe_Fittings"        , "description": "FabWave dataset sample."},
         16: {"name": "Pipe_Joints"              , "description": " fabewave dataset sample  "},
         17: {"name": "Pipes"                 , "description": " fabewave dataset sample  "},
         18: {"name": "Rollers"              , "description": " fabewave dataset sample  "},
@@ -161,7 +158,7 @@ def gather_fabwave_files(source: str) -> List[str]:
     shuffled_files = source_files.copy()
     random.shuffle(shuffled_files)
     
-    return shuffled_files #[:100]
+    return shuffled_files[:1500]
 
 
 ## Use the HOOPS AI directly integrated GraphClassification Model

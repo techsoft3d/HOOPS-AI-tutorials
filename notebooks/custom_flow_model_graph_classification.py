@@ -33,10 +33,10 @@ from hoops_ai.storage.metric_storage import MetricStorage
 
 class CustomGraphClassification(GraphClassification):
     """
-    CUSTOM GraphClassification is a user-friendly wrapper around the GraphClassiication model.
-    It provides default hyperparameters and a way to dinaically change the Y in the supervise task.
-    This allows multiple training from the same dataset by calling the method set_label_for_training 
-    before calling hte FLowTrainer train method. 
+    CUSTOM GraphClassification is a user-friendly wrapper around the GraphClassification model.
+    It provides default hyperparameters and a way to dynamically change the Y target in the
+    supervised task. This allows multiple training runs from the same dataset by calling
+    set_label_for_training before calling the FlowTrainer train method.
 
     Args:
         num_classes (int, optional): Number of classes for classification. Default: 10
@@ -62,7 +62,8 @@ class CustomGraphClassification(GraphClassification):
 
     def set_label_for_training(self, label_for_training: str = "graph_label") -> None:
         """
-        From the list of labels store in the graph_handler: MLStorage choose the name of the key to be used as the Y in the classification task
+        Choose which label stored in the graph handler (MLStorage) should be used as the
+        Y target in the classification task.
         
         """
         self.input_label_for_training = label_for_training
@@ -107,7 +108,7 @@ class CustomGraphClassification(GraphClassification):
         graphs, aux_dict = load_graphs(str(graph_file))
         graph = graphs[0]
 
-        # for the training we will here decide which label to use
+        # For training, choose which label to use here.
         key_label = self.input_label_for_training
         label = aux_dict.get(key_label, None)
         graph_file_path = pathlib.Path(graph_file)  # Convert to Path object

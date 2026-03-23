@@ -59,18 +59,6 @@ import torch
 
 
 # ============================================================================
-# LICENSE SETUP - Must be set at module level for ProcessPoolExecutor
-# ============================================================================
-# CRITICAL: Worker processes need the license configured when they import this module
-license_key = os.getenv("HOOPS_AI_LICENSE")
-if license_key:
-    hoops_ai.set_license(license_key, validate=False)
-else:
-    print("WARNING: HOOPS_AI_LICENSE environment variable not set in cad_tasks.py")
-# ============================================================================
-
-
-# ============================================================================
 # SCHEMA DEFINITION - Must be defined at module level for ProcessPoolExecutor
 # ============================================================================
 
@@ -139,51 +127,51 @@ else:
 # LABELS DESCRIPTION - Part classification labels
 # ============================================================================
 labels_description = {
-        0: {"name": "Bearings"              , "description": " fabewave dataset sample  "},
-        1: {"name": "Bolts"                 , "description": " fabewave dataset sample  "},
-        2: {"name": "Brackets"              , "description": " fabewave dataset sample  "},
-        3: {"name": "Bushing"               , "description": " fabewave dataset sample  "},
-        4: {"name": "Bushing_Damping_Liners", "description": " fabewave dataset sample  "},
-        5: {"name": "Collets"               , "description": " fabewave dataset sample  "},
-        6: {"name": "Gasket"                , "description": " fabewave dataset sample  "},
-        7: {"name": "Grommets"              , "description": " fabewave dataset sample  "},
-        8: {"name": "HeadlessScrews"        , "description": " fabewave dataset sample  "},
-        9: {"name": "Hex_Head_Screws"       , "description": " fabewave dataset sample  "},
-        10: {"name": "Keyway_Shaft"         , "description": " fabewave dataset sample  "},
-        11: {"name": "Machine_Key"          , "description": " fabewave dataset sample  "},
-        12: {"name": "Nuts"                 , "description": " fabewave dataset sample  "},
-        13: {"name": "O_Rings"              , "description": " fabewave dataset sample  "},
-        14: {"name": "Thumb_Screws"        , "description": " fabewave dataset sample   "},
-        15: {"name": "Pipe_Fittings"        , "description": " fabewave dataset sample   "},
-        16: {"name": "Pipe_Joints"              , "description": " fabewave dataset sample  "},
-        17: {"name": "Pipes"                 , "description": " fabewave dataset sample  "},
-        18: {"name": "Rollers"              , "description": " fabewave dataset sample  "},
-        19: {"name": "Rotary_Shaft"               , "description": " fabewave dataset sample  "},
-        20: {"name": "Shaft_Collar"         , "description": " fabewave dataset sample  "},
-        21: {"name": "Slotted_Flat_Head_Screws"               , "description": " fabewave dataset sample  "},
-        22: {"name": "Socket_Head_Screws"               , "description": " fabewave dataset sample  "},
-        23: {"name": "Washers"                , "description": " fabewave dataset sample  "},
-        24: {"name": "Boxes"              , "description": " fabewave dataset sample  "},
-        25: {"name": "Cotter_Pin"        , "description": " fabewave dataset sample  "},
-        26: {"name": "External Retaining Rings"       , "description": " fabewave dataset sample  "},
-        27: {"name": "Eyesbolts With Shoulders"         , "description": " fabewave dataset sample  "},
-        28: {"name": "Fixed Cap Flange"          , "description": " fabewave dataset sample  "},
-        29: {"name": "Gear Rod Stock"                 , "description": " fabewave dataset sample  "},
-        30: {"name": "Gears"              , "description": " fabewave dataset sample  "},
-        31: {"name": "Holebolts With Shoulders"        , "description": " fabewave dataset sample   "},
-        32: {"name": "Idler Sprocket"        , "description": " fabewave dataset sample   "},
-        33: {"name": "Miter Gear Set Screw"        , "description": " fabewave dataset sample   "},
-        34: {"name": "Miter Gears"        , "description": " fabewave dataset sample   "},
-        35: {"name": "Rectangular Gear Rack"        , "description": " fabewave dataset sample   "},
-        36: {"name": "Routing EyeBolts Bent Closed Eye"        , "description": " fabewave dataset sample   "},
-        37: {"name": "Sleeve Washers"        , "description": " fabewave dataset sample   "},
-        38: {"name": "Socket-Connect Flanges"        , "description": " fabewave dataset sample   "},
-        39: {"name": "Sprocket Taper-Lock Bushing"        , "description": " fabewave dataset sample   "},
-        40: {"name": "Strut Channel Floor Mount"        , "description": " fabewave dataset sample   "},
-        41: {"name": "Strut Channel Side-Side"        , "description": " fabewave dataset sample   "},
-        42: {"name": "Tag Holder"        , "description": " fabewave dataset sample   "},
-        43: {"name": "Webbing Guide"        , "description": " fabewave dataset sample   "},
-        44: {"name": "Wide Grip External Retaining Ring"        , "description": " fabewave dataset sample   "},
+    0: {"name": "Bearings"              , "description": "FabWave dataset sample."},
+    1: {"name": "Bolts"                 , "description": "FabWave dataset sample."},
+    2: {"name": "Brackets"              , "description": "FabWave dataset sample."},
+    3: {"name": "Bushing"               , "description": "FabWave dataset sample."},
+    4: {"name": "Bushing_Damping_Liners", "description": "FabWave dataset sample."},
+    5: {"name": "Collets"               , "description": "FabWave dataset sample."},
+    6: {"name": "Gasket"                , "description": "FabWave dataset sample."},
+    7: {"name": "Grommets"              , "description": "FabWave dataset sample."},
+    8: {"name": "HeadlessScrews"        , "description": "FabWave dataset sample."},
+    9: {"name": "Hex_Head_Screws"       , "description": "FabWave dataset sample."},
+    10: {"name": "Keyway_Shaft"         , "description": "FabWave dataset sample."},
+    11: {"name": "Machine_Key"          , "description": "FabWave dataset sample."},
+    12: {"name": "Nuts"                 , "description": "FabWave dataset sample."},
+    13: {"name": "O_Rings"              , "description": "FabWave dataset sample."},
+    14: {"name": "Thumb_Screws"         , "description": "FabWave dataset sample."},
+    15: {"name": "Pipe_Fittings"        , "description": "FabWave dataset sample."},
+    16: {"name": "Pipe_Joints"          , "description": "FabWave dataset sample."},
+    17: {"name": "Pipes"                , "description": "FabWave dataset sample."},
+    18: {"name": "Rollers"              , "description": "FabWave dataset sample."},
+    19: {"name": "Rotary_Shaft"         , "description": "FabWave dataset sample."},
+    20: {"name": "Shaft_Collar"         , "description": "FabWave dataset sample."},
+    21: {"name": "Slotted_Flat_Head_Screws", "description": "FabWave dataset sample."},
+    22: {"name": "Socket_Head_Screws"   , "description": "FabWave dataset sample."},
+    23: {"name": "Washers"              , "description": "FabWave dataset sample."},
+    24: {"name": "Boxes"                , "description": "FabWave dataset sample."},
+    25: {"name": "Cotter_Pin"           , "description": "FabWave dataset sample."},
+    26: {"name": "External Retaining Rings", "description": "FabWave dataset sample."},
+    27: {"name": "Eyesbolts With Shoulders", "description": "FabWave dataset sample."},
+    28: {"name": "Fixed Cap Flange"     , "description": "FabWave dataset sample."},
+    29: {"name": "Gear Rod Stock"       , "description": "FabWave dataset sample."},
+    30: {"name": "Gears"                , "description": "FabWave dataset sample."},
+    31: {"name": "Holebolts With Shoulders", "description": "FabWave dataset sample."},
+    32: {"name": "Idler Sprocket"       , "description": "FabWave dataset sample."},
+    33: {"name": "Miter Gear Set Screw" , "description": "FabWave dataset sample."},
+    34: {"name": "Miter Gears"          , "description": "FabWave dataset sample."},
+    35: {"name": "Rectangular Gear Rack", "description": "FabWave dataset sample."},
+    36: {"name": "Routing EyeBolts Bent Closed Eye", "description": "FabWave dataset sample."},
+    37: {"name": "Sleeve Washers"       , "description": "FabWave dataset sample."},
+    38: {"name": "Socket-Connect Flanges", "description": "FabWave dataset sample."},
+    39: {"name": "Sprocket Taper-Lock Bushing", "description": "FabWave dataset sample."},
+    40: {"name": "Strut Channel Floor Mount", "description": "FabWave dataset sample."},
+    41: {"name": "Strut Channel Side-Side", "description": "FabWave dataset sample."},
+    42: {"name": "Tag Holder"           , "description": "FabWave dataset sample."},
+    43: {"name": "Webbing Guide"        , "description": "FabWave dataset sample."},
+    44: {"name": "Wide Grip External Retaining Ring", "description": "FabWave dataset sample."},
     }
 
 # Invert the dictionary
@@ -295,12 +283,26 @@ def get_flow_name():
     return "ETL_Multi_Y_Part_Classification"
 
 flow_name = get_flow_name()
-custom_graph_classification = CustomGraphClassification(num_classes=45, result_dir= str(pathlib.Path(flows_outputdir).joinpath("flows").joinpath(flow_name)))
+
+# Lazy initialization: defer model creation to avoid heavy imports at module load time.
+# On Windows, ProcessPoolExecutor workers re-import this module; instantiating
+# the model here would trigger torch/DGL/pytorch_lightning init and exceed the
+# worker timeout before the actual task even starts.
+_custom_graph_classification = None
+
+def _get_custom_graph_classification():
+    global _custom_graph_classification
+    if _custom_graph_classification is None:
+        _custom_graph_classification = CustomGraphClassification(
+            num_classes=45,
+            result_dir=str(pathlib.Path(flows_outputdir).joinpath("flows").joinpath(flow_name))
+        )
+    return _custom_graph_classification
 
 
 # ============================================================================
 @flowtask.transform(
-    name="Preparing data for Exploring and ML training",
+    name="Preparing data for exploration and ML training",
     inputs=["cad_dataset"],
     outputs=["cad_files_encoded"],
     parallel_execution=True
@@ -314,7 +316,7 @@ def encode_data_for_ml_training(cad_file: str, cad_loader :  HOOPSLoader, storag
     cad_model = cad_loader.create_from_file(cad_file)
     storage.set_schema(cad_schema)
 
-    facecount, edgecount = custom_graph_classification.encode_cad_data(cad_file, cad_loader, storage)
+    facecount, edgecount = _get_custom_graph_classification().encode_cad_data(cad_file, cad_loader, storage)
     
     # Add label data
     folder_with_name = str(pathlib.Path(cad_file).parent.parent.stem)
@@ -371,7 +373,7 @@ def encode_data_for_ml_training(cad_file: str, cad_loader :  HOOPSLoader, storag
     dgl_storage.append_extra_data(storage.load_data("Labels/task_D"), feature_name="task_D", torch_type=torch.long)
 
     
-    custom_graph_classification.convert_encoded_data_to_graph(storage, dgl_storage, str(dgl_output_path))
+    _get_custom_graph_classification().convert_encoded_data_to_graph(storage, dgl_storage, str(dgl_output_path))
     
     # Save file-level metadata (will be routed to .infoset)
     storage.save_metadata("Item", str(cad_file))

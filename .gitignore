@@ -4,6 +4,9 @@
 
 # Ignore top-level 'packages' directory and its contents
 /packages/*
+/tutorials_data_1.0.*
+/tutorials_data_1.0/*
+
 # But keep the README.md file
 !/packages/README.md
 
@@ -20,6 +23,7 @@
 
 #ignore private notebooks
 /private_notebooks
+demo_images.ipynb
 /packagesb1
 
 **/.hoops_embeddings_temp

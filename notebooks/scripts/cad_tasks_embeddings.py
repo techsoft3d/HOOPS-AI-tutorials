@@ -1,4 +1,5 @@
 import os
+import sys
 import glob
 import random
 from typing import List
@@ -18,17 +19,12 @@ from hoops_ai.storage import DGLGraphStoreHandler
 from hoops_ai.ml.EXPERIMENTAL import EmbeddingFlowModel
 import pathlib
 
+license_key = os.environ.get("HOOPS_AI_LICENSE")
+if not license_key:
+    sys.exit("HOOPS_AI_LICENSE environment variable is required.")
 
-# ============================================================================
-# LICENSE SETUP - Must be set at module level for ProcessPoolExecutor
-# ============================================================================
-# CRITICAL: Worker processes need the license configured when they import this module
-license_key = os.getenv("HOOPS_AI_LICENSE")
-if license_key:
-    hoops_ai.set_license(license_key, validate=False)
-else:
-    print("WARNING: HOOPS_AI_LICENSE environment variable not set in cad_tasks.py")
-# ============================================================================
+print("\n[OK] Using HOOPS_AI_LICENSE from environment variable")
+hoops_ai.set_license(license_key, validate=True, silent=True)
 
 @flowtask.extract(
     name="Gather CAD files from datasources",
@@ -62,7 +58,7 @@ nb_dir = pathlib.Path.cwd()
 flows_outputdir = nb_dir.joinpath("out")
 
 def get_flow_name():
-    return "HOOPS Embedding Training"
+    return "HOOPS_Embedding_Training"
 
 flow_name = get_flow_name()
 EmbeddingModel = EmbeddingFlowModel(result_dir= str(pathlib.Path(flows_outputdir).joinpath("flows").joinpath(flow_name)),
@@ -72,13 +68,13 @@ EmbeddingModel = EmbeddingFlowModel(result_dir= str(pathlib.Path(flows_outputdir
 #dgl_storage = DGLGraphStoreHandler()
 
 @flowtask.transform(
-    name="Extracting CAD ML-input for EmbeddingModel",
+    name="Extracting CAD ML input for EmbeddingFlowModel",
     inputs=["cad_dataset"],
     outputs=["cad_files_encoded"],
     parallel_execution=True
 )
 def encode_data_for_ml_training(cad_file: str, cad_loader :  HOOPSLoader, storage : DataStorage) -> str:
-    """Logic to prepare data for exploring and machine learning training - Shape Embedding's Model
+    """Logic to prepare data for exploration and machine learning training for the shape-embedding model.
     """
 
     facecount, edgecount = EmbeddingModel.encode_cad_data(cad_file, cad_loader, storage)
@@ -96,9 +92,6 @@ def encode_data_for_ml_training(cad_file: str, cad_loader :  HOOPSLoader, storag
     # Save file-level metadata (will be routed to .infoset)
     storage.save_metadata("Item", str(cad_file))
     storage.save_metadata("source", "FABWAVE")
-    
-    # Compress the storage into a .data file
-    storage.compress_store()
     
     # Return the base storage path
     return storage.get_file_path("")
