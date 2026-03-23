@@ -23,6 +23,7 @@
 
 #ignore private notebooks
 /private_notebooks
+demo_images.ipynb
 /packagesb1
 
 **/.hoops_embeddings_temp
