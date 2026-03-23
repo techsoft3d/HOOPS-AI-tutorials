@@ -1,4 +1,5 @@
 import os
+import sys
 import glob
 import random
 from typing import List
@@ -18,7 +19,12 @@ from hoops_ai.storage import DGLGraphStoreHandler
 from hoops_ai.ml.EXPERIMENTAL import EmbeddingFlowModel
 import pathlib
 
-hoops_ai.set_license(hoops_ai.use_test_license(), validate=False, silent= True)
+license_key = os.environ.get("HOOPS_AI_LICENSE")
+if not license_key:
+    sys.exit("HOOPS_AI_LICENSE environment variable is required.")
+
+print("\n[OK] Using HOOPS_AI_LICENSE from environment variable")
+hoops_ai.set_license(license_key, validate=True, silent=True)
 
 @flowtask.extract(
     name="Gather CAD files from datasources",
