@@ -15,7 +15,7 @@ def display_task_source(task_func, title=None):
     
     Args:
         task_func: The function to display source code for
-        title: Optional title (kept for backwards compatibility, not currently used)
+        title: Optional title (kept for backward compatibility, not currently used)
     """
     # Get the module where the function is defined
     module = inspect.getmodule(task_func)

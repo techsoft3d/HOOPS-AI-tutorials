@@ -68,13 +68,13 @@ EmbeddingModel = EmbeddingFlowModel(result_dir= str(pathlib.Path(flows_outputdir
 #dgl_storage = DGLGraphStoreHandler()
 
 @flowtask.transform(
-    name="Extracting CAD ML-input for EmbeddingModel",
+    name="Extracting CAD ML input for EmbeddingFlowModel",
     inputs=["cad_dataset"],
     outputs=["cad_files_encoded"],
     parallel_execution=True
 )
 def encode_data_for_ml_training(cad_file: str, cad_loader :  HOOPSLoader, storage : DataStorage) -> str:
-    """Logic to prepare data for exploring and machine learning training - Shape Embedding's Model
+    """Logic to prepare data for exploration and machine learning training for the shape-embedding model.
     """
 
     facecount, edgecount = EmbeddingModel.encode_cad_data(cad_file, cad_loader, storage)

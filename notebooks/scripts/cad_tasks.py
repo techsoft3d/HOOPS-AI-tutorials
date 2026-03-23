@@ -80,7 +80,7 @@ cad_schema = builder.build()
     parallel_execution=True
 )
 def gather_files(source: str) -> List[str]:
-    """Custom implementation of Data ingestion
+    """Custom data-ingestion implementation.
     """
     # Use simple glob pattern matching for ProcessPoolExecutor compatibility
     patterns = ["*.stp", "*.step", "*.iges", "*.igs"]
@@ -102,7 +102,7 @@ def gather_files(source: str) -> List[str]:
     parallel_execution=True
 )
 def encode_manufacturing_data(cad_file: str, cad_loader: HOOPSLoader, storage: DataStorage) -> str:
-    """custom implementation of a flowtask.transform
+    """Custom implementation of a flowtask transform.
     """
     # Load CAD model using the process-local HOOPSLoader
     cad_model = cad_loader.create_from_file(cad_file)
