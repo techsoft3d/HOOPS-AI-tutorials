@@ -1,12 +1,12 @@
 ![HOOPSAI](images/HOOPS-AI.png)
 
-# HOOPS AI 1.0 release on: March 31th, 2026
+# HOOPS AI 1.0 - March 31th, 2026
 
-see what is new here: https://docs.techsoft3d.com/hoops/ai/resources/release_notes/index.html
+see release notes here: https://docs.techsoft3d.com/hoops/ai/resources/release_notes/index.html
 
 # Documentation
 
-visit our documentation here: https://docs.techsoft3d.com/hoops/ai/
+visit our official documentation here: https://docs.techsoft3d.com/hoops/ai/
 
 # HOOPS-AI-tutorials
 Tech Soft 3D tutorials of python CAD framework for machine learning development - HOOPS AI
@@ -21,30 +21,22 @@ Developed in Python, it features Jupyter notebooks that guide users through prac
 
 ---
 
-## Dependency
+## Install HOOPS AI
 
-🪪 1. Get Access first!
+1. Get Access first! You will need to set your HOOPS AI LICENSE to use HOOPS AI
 
-Requirements: Python > 3.9 and MiniConda (24.x)
-Ask your TECH SOFT 3D contact to give you acces to HOOPS AI 1.0 beta-2 preview.
 Go to: https://www.techsoft3d.com/developers/products/hoops-ai
 
-```bash
-pip install hoops-ai-installer .........(full code to be received by email)
-hoops-ai-installer install --mode cpu
-hoops-ai-installer install --mode gpu
+see section Evaluate and Install from our doc: https://docs.techsoft3d.com/hoops/ai/getting_started/evaluate.html
 
-```
-
-Note: You will need to set your HOOPS AI license to execute the notebooks
 
 ## Running the Notebooks
 
 Download the input data for the notebooks
-### Fetch test files for the tutorials - Require password to be received by email
+### Fetch test files for the tutorials - [optional] please contact your Tech Soft 3D representative
 Go to: https://transfer.techsoft3d.com/link/KQTgpzP9tRFBHCuzhm4nu2
 
-extract the zip and name this packages. 
+extract the zip and place the packages folde rnext to the notebooks folder. 
 
 ### Activate the development environment
 Open a cmd in the location of this repo. If HOOPS AI is installed, then activate the environment of you choice (cpu or gpu):
