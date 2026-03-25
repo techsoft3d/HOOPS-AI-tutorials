@@ -23,7 +23,6 @@ license_key = os.environ.get("HOOPS_AI_LICENSE")
 if not license_key:
     sys.exit("HOOPS_AI_LICENSE environment variable is required.")
 
-print("\n[OK] Using HOOPS_AI_LICENSE from environment variable")
 hoops_ai.set_license(license_key, validate=True, silent=True)
 
 @flowtask.extract(
@@ -51,7 +50,7 @@ def gather_cad_files(source: str) -> List[str]:
     shuffled_files = source_files.copy()
     random.shuffle(shuffled_files)
     
-    return shuffled_files
+    return shuffled_files[:1500]
 
 
 nb_dir = pathlib.Path.cwd()
