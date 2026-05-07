@@ -42,7 +42,7 @@ from hoops_ai.storage.datasetstorage.schema_builder import SchemaBuilder
 from hoops_ai.storage.label_storage import LabelStorage
 from hoops_ai.storage.helpers import generate_unique_id_from_path
 
-from hoops_ai.storage import DGLGraphStoreHandler, OptStorage
+from hoops_ai.storage import PyGGraphStoreHandler, OptStorage
 from hoops_ai.storage import JsonStorageHandler
 
 
@@ -286,7 +286,7 @@ flow_name = get_flow_name()
 
 # Lazy initialization: defer model creation to avoid heavy imports at module load time.
 # On Windows, ProcessPoolExecutor workers re-import this module; instantiating
-# the model here would trigger torch/DGL/pytorch_lightning init and exceed the
+# the model here would trigger torch/PyG/pytorch_lightning init and exceed the
 # worker timeout before the actual task even starts.
 _custom_graph_classification = None
 
@@ -342,7 +342,7 @@ def encode_data_for_ml_training(cad_file: str, cad_loader :  HOOPSLoader, storag
     storage.save_metadata("task_D_description", simplified_label_name)
     
     # ALSO save label using the key expected by GraphClassification.convert_encoded_data_to_graph
-    # This is required for the DGL graph files to have the correct labels
+    # This is required for the graph files to have the correct labels
     storage.save_data(LabelStorage.GRAPH_CADENTITY, np.array([label_code]))
     #storage.save_data("Labels/part_label", np.array([label_code]))
     
@@ -357,23 +357,23 @@ def encode_data_for_ml_training(cad_file: str, cad_loader :  HOOPSLoader, storag
     
     
     #my_workflow_for_fabewave.encode_label_data()
-    dgl_storage = DGLGraphStoreHandler()
+    graph_storage = PyGGraphStoreHandler()
 
-    # DGL graph Bin file
+    # graph Bin file
     item_no_suffix = pathlib.Path(cad_file).with_suffix("")  # Remove the suffix to get the base name
     hash_id = generate_unique_id_from_path(str(item_no_suffix))
-    dgl_output_path = pathlib.Path(flows_outputdir).joinpath("flows", flow_name, "dgl", f"{hash_id}.ml")  
-    dgl_output_path.parent.mkdir(parents=True, exist_ok=True)
+    graph_output_path = pathlib.Path(flows_outputdir).joinpath("flows", flow_name, "graph_data", f"{hash_id}.pt")
+    graph_output_path.parent.mkdir(parents=True, exist_ok=True)
 
     
-    #dgl_storage.append_extra_data(storage.load_data("Labels/part_label"), feature_name="part_label", torch_type=torch.long)
-    dgl_storage.append_extra_data(storage.load_data("Labels/task_A"), feature_name="task_A", torch_type=torch.long)
-    dgl_storage.append_extra_data(storage.load_data("Labels/task_B"), feature_name="task_B", torch_type=torch.long)
-    dgl_storage.append_extra_data(storage.load_data("Labels/task_C"), feature_name="task_C", torch_type=torch.long)
-    dgl_storage.append_extra_data(storage.load_data("Labels/task_D"), feature_name="task_D", torch_type=torch.long)
+    #graph_storage.append_extra_data(storage.load_data("Labels/part_label"), feature_name="part_label", torch_type=torch.long)
+    graph_storage.append_extra_data(storage.load_data("Labels/task_A"), feature_name="task_A", torch_type=torch.long)
+    graph_storage.append_extra_data(storage.load_data("Labels/task_B"), feature_name="task_B", torch_type=torch.long)
+    graph_storage.append_extra_data(storage.load_data("Labels/task_C"), feature_name="task_C", torch_type=torch.long)
+    graph_storage.append_extra_data(storage.load_data("Labels/task_D"), feature_name="task_D", torch_type=torch.long)
 
     
-    _get_custom_graph_classification().convert_encoded_data_to_graph(storage, dgl_storage, str(dgl_output_path))
+    _get_custom_graph_classification().convert_encoded_data_to_graph(storage, graph_storage, str(graph_output_path))
     
     # Save file-level metadata (will be routed to .infoset)
     storage.save_metadata("Item", str(cad_file))
