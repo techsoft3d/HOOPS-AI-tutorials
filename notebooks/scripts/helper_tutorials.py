@@ -1,4 +1,9 @@
 from collections import defaultdict
+from dotenv import load_dotenv, find_dotenv
+import os
+
+def load_environement_variables():
+    _ = load_dotenv(find_dotenv())
 
 def find_repeated_indices(arr):
     
@@ -96,16 +101,14 @@ def print_distribution_info(dist, title="Distribution"):
     
     plt.tight_layout()
     plt.show()
-    
-    
+
+
 def rgb_to_ansi_bg(rgb):
     r, g, b = rgb
     return f"\033[48;2;{r};{g};{b}m"  # ANSI background color
 
 RESET = "\033[0m"
 BLOCK = "  "  # two spaces as a square
-
-
 
 
 import numpy as np
