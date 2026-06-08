@@ -3,6 +3,8 @@ from dotenv import load_dotenv, find_dotenv
 import os
 
 def load_environement_variables():
+    import warnings
+    warnings.filterwarnings("ignore")
     _ = load_dotenv(find_dotenv())
 
 def find_repeated_indices(arr):
