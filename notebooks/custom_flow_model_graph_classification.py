@@ -14,10 +14,6 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from typing import Dict, Any
-from dgl.data.utils import load_graphs
-import os
-os.environ["DGLBACKEND"] = "pytorch"
-import dgl
 import pathlib
 
 from hoops_ai.ml.EXPERIMENTAL.flow_model_graph_classification import GraphClassification
@@ -67,6 +63,7 @@ class CustomGraphClassification(GraphClassification):
         
         """
         self.input_label_for_training = label_for_training
+
     # ========================================================================
     # OVERRIDABLE METHODS - Customize these methods for custom behavior
     # ========================================================================
@@ -98,23 +95,21 @@ class CustomGraphClassification(GraphClassification):
         """
         return super().convert_encoded_data_to_graph(storage, graph_handler, filename)
 
-
-
     def load_model_input_from_files(self, graph_file: str, data_id: int, label_file: str = None) -> Any:
         """
         Loads a single graph from a file to be used as input for the machine learning model.
         Override this method to customize data loading logic.
         """
-        graphs, aux_dict = load_graphs(str(graph_file))
-        graph = graphs[0]
+        pt_path = pathlib.Path(str(graph_file)).with_suffix(".pt")
+        loaded = torch.load(str(pt_path), weights_only=False)
+        data = loaded["data"]
+        extra = loaded.get("extra", {})
 
         # For training, choose which label to use here.
         key_label = self.input_label_for_training
-        label = aux_dict.get(key_label, None)
-        graph_file_path = pathlib.Path(graph_file)  # Convert to Path object
-        sample = {"graph": graph, "label" : label} # "filename": graph_file_path.stem,
+        label = extra.get(key_label, None)
 
-        return sample
+        return {"graph": data, "label": label}
 
     def collate_function(self, batch) -> Any:
         """
@@ -142,6 +137,3 @@ class CustomGraphClassification(GraphClassification):
         Override this method to provide a custom model name.
         """
         return f"CUSTOM GRAPH CLASSIFICATION MODEL : Y={self.input_label_for_training}"
-
-
-  

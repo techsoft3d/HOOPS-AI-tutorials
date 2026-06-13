@@ -1,6 +1,6 @@
 ![HOOPSAI](images/HOOPS-AI.png)
 
-# HOOPS AI 1.0 - March 31th, 2026
+# HOOPS AI 1.1 - June 15th, 2026
 
 see release notes here: https://docs.techsoft3d.com/hoops/ai/resources/release_notes/index.html
 
@@ -33,30 +33,11 @@ see section Evaluate and Install from our doc: https://docs.techsoft3d.com/hoops
 ## Running the Notebooks
 
 Download the input data for the notebooks
-### Fetch test files for the tutorials - [optional] please contact your Tech Soft 3D representative
-Go to: https://transfer.techsoft3d.com/link/KQTgpzP9tRFBHCuzhm4nu2
 
-extract the zip and place the packages folde rnext to the notebooks folder. 
+### Fetch test files for the tutorials - [optional] please contact your Tech Soft 3D representative to get the password for downloading
+Go to: https://transfer.techsoft3d.com/link/oTi2ABZ0h3XG7sH8zTI27y
 
-### Activate the development environment
-Open a cmd in the location of this repo. If HOOPS AI is installed, then activate the environment of you choice (cpu or gpu):
-
-```bash
-conda activate hoops_ai_gpu
-```
-
-or
-
-```bash
-conda activate hoops_ai_cpu
-```
-
-then run inside the environment the jupyter lab command:
-```bash
-jupyter lab
-```
-
-A browser will open with your local folder, in the environment double click the folder notebooks and follow each notebook instructions.
+extract the zip and place the packages folder next to the notebooks folder. 
 
 Each notebook contains step-by-step instructions and annotations.
 

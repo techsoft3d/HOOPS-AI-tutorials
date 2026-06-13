@@ -31,3 +31,5 @@ demo_images.ipynb
 **.meta
 **/too_heavy_files.log
 **/error_summary.json
+
+*.env

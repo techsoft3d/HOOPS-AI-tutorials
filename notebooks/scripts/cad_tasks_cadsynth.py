@@ -44,7 +44,7 @@ from hoops_ai.storage.datasetstorage.schema_builder import SchemaBuilder
 from hoops_ai.storage.label_storage import LabelStorage
 from hoops_ai.storage.helpers import generate_unique_id_from_path
 
-from hoops_ai.storage import DGLGraphStoreHandler
+from hoops_ai.storage import PyGGraphStoreHandler
 from hoops_ai.ml.EXPERIMENTAL import GraphNodeClassification
 import pathlib
 
@@ -191,19 +191,19 @@ def encode_data_for_ml_training(cad_file: str, cad_loader :  HOOPSLoader, storag
 
     
     # ALSO save label using the key expected by GraphClassification.convert_encoded_data_to_graph
-    # This is required for the DGL graph files to have the correct labels
+    # This is required for the PyG graph files to have the correct labels
     storage.save_data("face_labels", label_array)
     
     #
-    dgl_storage = DGLGraphStoreHandler()
+    graph_storage = PyGGraphStoreHandler()
 
-    # DGL graph Bin file
+    # graph Bin file
     item_no_suffix = pathlib.Path(cad_file).with_suffix("")  # Remove the suffix to get the base name
     hash_id = generate_unique_id_from_path(str(item_no_suffix))
-    dgl_output_path = pathlib.Path(flows_outputdir).joinpath("flows", flow_name, "dgl", f"{hash_id}.ml")  
-    dgl_output_path.parent.mkdir(parents=True, exist_ok=True)
+    graph_output_path = pathlib.Path(flows_outputdir).joinpath("flows", flow_name, "graph_data", f"{hash_id}.pt")  
+    graph_output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    my_workflow_for_cadsynth.convert_encoded_data_to_graph(storage, dgl_storage, str(dgl_output_path))
+    my_workflow_for_cadsynth.convert_encoded_data_to_graph(storage, graph_storage, str(graph_output_path))
     
     # Save file-level metadata (will be routed to .infoset)
     storage.save_metadata("Item", str(cad_file))
