@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="660" viewBox="0 0 1120 660" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#0e4d7d"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1120" height="660" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="560" y="36" text-anchor="middle" font-size="23" font-weight="700" fill="#0e4d7d">Stage 2 &#8212; Optimal one-to-one part matching (Hungarian)</text>
+  <text x="560" y="60" text-anchor="middle" font-size="14" fill="#5b6b78">How a single candidate assembly is scored against the query assembly</text>
+
+  <!-- ================= Panel 1: bipartite matching ================= -->
+  <rect x="28" y="84" width="430" height="320" rx="12" fill="#f6f9fc" stroke="#d4e1ec"/>
+  <rect x="44" y="98" width="320" height="26" rx="13" fill="#0e4d7d"/>
+  <text x="58" y="116" font-size="14" font-weight="700" fill="#ffffff">&#9312;  Match each query part to one candidate part</text>
+
+  <text x="118" y="150" text-anchor="middle" font-size="13" font-weight="700" fill="#0e4d7d">Query parts</text>
+  <text x="372" y="150" text-anchor="middle" font-size="13" font-weight="700" fill="#0e4d7d">Candidate parts</text>
+
+  <!-- Query chips -->
+  <g font-size="13" fill="#1f2d3a">
+    <rect x="54" y="166" width="128" height="34" rx="8" fill="#dceaf6" stroke="#1b6ca8"/><text x="118" y="188" text-anchor="middle">Housing</text>
+    <rect x="54" y="212" width="128" height="34" rx="8" fill="#dceaf6" stroke="#1b6ca8"/><text x="118" y="234" text-anchor="middle">Shaft</text>
+    <rect x="54" y="258" width="128" height="34" rx="8" fill="#dceaf6" stroke="#1b6ca8"/><text x="118" y="280" text-anchor="middle">Bolt A</text>
+    <rect x="54" y="304" width="128" height="34" rx="8" fill="#eef2f5" stroke="#9aa7b2"/><text x="118" y="326" text-anchor="middle">Bolt B</text>
+  </g>
+  <!-- Candidate chips -->
+  <g font-size="13" fill="#1f2d3a">
+    <rect x="308" y="166" width="128" height="34" rx="8" fill="#dceaf6" stroke="#1b6ca8"/><text x="372" y="188" text-anchor="middle">Housing</text>
+    <rect x="308" y="212" width="128" height="34" rx="8" fill="#dceaf6" stroke="#1b6ca8"/><text x="372" y="234" text-anchor="middle">Shaft</text>
+    <rect x="308" y="258" width="128" height="34" rx="8" fill="#dceaf6" stroke="#1b6ca8"/><text x="372" y="280" text-anchor="middle">Bolt</text>
+    <rect x="308" y="304" width="128" height="34" rx="8" fill="#eef2f5" stroke="#9aa7b2"/><text x="372" y="326" text-anchor="middle">Washer</text>
+  </g>
+
+  <!-- Matching links -->
+  <g stroke-width="3" fill="none">
+    <line x1="182" y1="183" x2="308" y2="183" stroke="#2e9e5b"/>
+    <line x1="182" y1="229" x2="308" y2="229" stroke="#2e9e5b"/>
+    <line x1="182" y1="275" x2="308" y2="275" stroke="#2e9e5b"/>
+    <line x1="182" y1="321" x2="308" y2="321" stroke="#b9c2cb" stroke-dasharray="6 5"/>
+  </g>
+  <g font-size="12" font-weight="700">
+    <text x="245" y="178" text-anchor="middle" fill="#1e7a45">0.95</text>
+    <text x="245" y="224" text-anchor="middle" fill="#1e7a45">0.88</text>
+    <text x="245" y="270" text-anchor="middle" fill="#1e7a45">0.91</text>
+    <text x="245" y="316" text-anchor="middle" fill="#8a96a1">0.42</text>
+  </g>
+  <text x="243" y="356" text-anchor="middle" font-size="11.5" fill="#8a96a1">below sim_thresh (0.80) &#8594; not counted</text>
+  <text x="243" y="374" text-anchor="middle" font-size="11.5" fill="#2e9e5b" font-weight="700">3 of 4 query parts matched</text>
+
+  <!-- ================= Panel 2: similarity matrix ================= -->
+  <rect x="486" y="84" width="606" height="320" rx="12" fill="#f6f9fc" stroke="#d4e1ec"/>
+  <rect x="502" y="98" width="430" height="26" rx="13" fill="#0e4d7d"/>
+  <text x="516" y="116" font-size="14" font-weight="700" fill="#ffffff">&#9313;  Choose the assignment with the highest total similarity</text>
+
+  <!-- column labels -->
+  <g font-size="12" fill="#5b6b78">
+    <text x="724" y="150" text-anchor="middle">Housing</text>
+    <text x="788" y="150" text-anchor="middle">Shaft</text>
+    <text x="852" y="150" text-anchor="middle">Bolt</text>
+    <text x="916" y="150" text-anchor="middle">Washer</text>
+  </g>
+  <text x="724" y="135" text-anchor="middle" font-size="11" fill="#9aa7b2">candidate parts &#8595;</text>
+
+  <!-- row labels -->
+  <g font-size="12" fill="#5b6b78" text-anchor="end">
+    <text x="685" y="190">Housing</text>
+    <text x="685" y="254">Shaft</text>
+    <text x="685" y="318">Bolt A</text>
+    <text x="685" y="382">Bolt B</text>
+  </g>
+  <text x="540" y="285" font-size="11" fill="#9aa7b2" transform="rotate(-90 540 285)" text-anchor="middle">query parts &#8594;</text>
+
+  <!-- matrix cells: fill opacity ~ similarity -->
+  <g stroke="#ffffff" stroke-width="2">
+    <!-- row Housing -->
+    <rect x="692" y="160" width="64" height="64" fill="#1b6ca8" fill-opacity="0.95"/>
+    <rect x="756" y="160" width="64" height="64" fill="#1b6ca8" fill-opacity="0.30"/>
+    <rect x="820" y="160" width="64" height="64" fill="#1b6ca8" fill-opacity="0.12"/>
+    <rect x="884" y="160" width="64" height="64" fill="#1b6ca8" fill-opacity="0.10"/>
+    <!-- row Shaft -->
+    <rect x="692" y="224" width="64" height="64" fill="#1b6ca8" fill-opacity="0.28"/>
+    <rect x="756" y="224" width="64" height="64" fill="#1b6ca8" fill-opacity="0.88"/>
+    <rect x="820" y="224" width="64" height="64" fill="#1b6ca8" fill-opacity="0.20"/>
+    <rect x="884" y="224" width="64" height="64" fill="#1b6ca8" fill-opacity="0.15"/>
+    <!-- row Bolt A -->
+    <rect x="692" y="288" width="64" height="64" fill="#1b6ca8" fill-opacity="0.14"/>
+    <rect x="756" y="288" width="64" height="64" fill="#1b6ca8" fill-opacity="0.22"/>
+    <rect x="820" y="288" width="64" height="64" fill="#1b6ca8" fill-opacity="0.91"/>
+    <rect x="884" y="288" width="64" height="64" fill="#1b6ca8" fill-opacity="0.55"/>
+    <!-- row Bolt B -->
+    <rect x="692" y="352" width="64" height="64" fill="#1b6ca8" fill-opacity="0.13"/>
+    <rect x="756" y="352" width="64" height="64" fill="#1b6ca8" fill-opacity="0.18"/>
+    <rect x="820" y="352" width="64" height="64" fill="#1b6ca8" fill-opacity="0.58"/>
+    <rect x="884" y="352" width="64" height="64" fill="#1b6ca8" fill-opacity="0.42"/>
+  </g>
+
+  <!-- similarity numbers -->
+  <g font-size="12" text-anchor="middle">
+    <text x="724" y="197" fill="#ffffff" font-weight="700">.95</text>
+    <text x="788" y="197" fill="#33485a">.30</text>
+    <text x="852" y="197" fill="#33485a">.12</text>
+    <text x="916" y="197" fill="#33485a">.10</text>
+    <text x="724" y="261" fill="#33485a">.28</text>
+    <text x="788" y="261" fill="#ffffff" font-weight="700">.88</text>
+    <text x="852" y="261" fill="#33485a">.20</text>
+    <text x="916" y="261" fill="#33485a">.15</text>
+    <text x="724" y="325" fill="#33485a">.14</text>
+    <text x="788" y="325" fill="#33485a">.22</text>
+    <text x="852" y="325" fill="#ffffff" font-weight="700">.91</text>
+    <text x="916" y="325" fill="#33485a">.55</text>
+    <text x="724" y="389" fill="#33485a">.13</text>
+    <text x="788" y="389" fill="#33485a">.18</text>
+    <text x="852" y="389" fill="#33485a">.58</text>
+    <text x="916" y="389" fill="#33485a">.42</text>
+  </g>
+
+  <!-- chosen assignment rings (one per row & column) -->
+  <g fill="none" stroke="#f0a01e" stroke-width="4">
+    <rect x="694" y="162" width="60" height="60" rx="6"/>
+    <rect x="758" y="226" width="60" height="60" rx="6"/>
+    <rect x="822" y="290" width="60" height="60" rx="6"/>
+  </g>
+  <rect x="886" y="354" width="60" height="60" rx="6" fill="none" stroke="#b9c2cb" stroke-width="3" stroke-dasharray="5 4"/>
+
+  <text x="980" y="200" font-size="12.5" fill="#1f2d3a" font-weight="700">Rule:</text>
+  <text x="980" y="222" font-size="12.5" fill="#33485a">exactly one</text>
+  <text x="980" y="240" font-size="12.5" fill="#33485a"><tspan fill="#f0a01e" font-weight="700">&#9633;</tspan> per row</text>
+  <text x="980" y="258" font-size="12.5" fill="#33485a">and per column.</text>
+  <text x="980" y="286" font-size="12.5" fill="#33485a">A generic bolt</text>
+  <text x="980" y="304" font-size="12.5" fill="#33485a">can&#8217;t be reused</text>
+  <text x="980" y="322" font-size="12.5" fill="#33485a">to inflate the</text>
+  <text x="980" y="340" font-size="12.5" fill="#33485a">score.</text>
+
+  <!-- ================= Bottom band: scoring ================= -->
+  <rect x="28" y="424" width="1064" height="210" rx="12" fill="#eef4f9" stroke="#d4e1ec"/>
+  <rect x="44" y="438" width="330" height="26" rx="13" fill="#0e4d7d"/>
+  <text x="58" y="456" font-size="14" font-weight="700" fill="#ffffff">&#9314;  Weight by rarity, then combine into one score</text>
+
+  <!-- formula -->
+  <text x="60" y="500" font-size="16" fill="#1f2d3a" font-family="Consolas, monospace">
+    score  =  ( &#931; sim(i,j) &#183; w(j) )  /  ( &#931; w(j) )   &#215;   coverage
+  </text>
+  <text x="60" y="524" font-size="12.5" fill="#5b6b78" font-family="Consolas, monospace">sums run over matched pairs whose similarity &#8805; sim_thresh</text>
+  <text x="60" y="552" font-size="14" fill="#1f2d3a" font-family="Consolas, monospace">coverage  =  matched pairs / max(M, N)</text>
+  <text x="60" y="576" font-size="14" fill="#1f2d3a" font-family="Consolas, monospace">w(j)      =  rarity weight (TF-IDF)</text>
+
+  <!-- plain english -->
+  <g font-size="13" fill="#33485a">
+    <circle cx="600" cy="496" r="3.5" fill="#2e9e5b"/><text x="614" y="500"><tspan font-weight="700">Match quality</tspan> &#8212; how similar the paired parts are (cosine, 0&#8211;1).</text>
+    <circle cx="600" cy="524" r="3.5" fill="#2e9e5b"/><text x="614" y="528"><tspan font-weight="700">Coverage</tspan> &#8212; rewards matching most of the parts; a big</text>
+    <text x="614" y="546">library can&#8217;t &#8220;contain&#8221; a small query (normalized by max&#8201;M,&#8201;N).</text>
+    <circle cx="600" cy="574" r="3.5" fill="#2e9e5b"/><text x="614" y="578"><tspan font-weight="700">Rarity weight</tspan> &#8212; common bolts/washers count for little; a</text>
+    <text x="614" y="596">distinctive housing or gear drives the match.</text>
+  </g>
+  <text x="60" y="616" font-size="11.5" fill="#9aa7b2">M = number of query parts, N = number of candidate parts. The optimal assignment is found with the Hungarian algorithm.</text>
+</svg>
