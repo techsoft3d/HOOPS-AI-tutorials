@@ -328,13 +328,18 @@ class AssemblyMatcher:
         return scored[:top_k]
 
     # ---------- demo helper (optional) ----------
-    def find_demo_queries(self, n: int = 5, min_parts: int = 8, max_parts: int = 200,
+    def find_demo_queries(self, n: int = 5, top_k: int = 8, good_score: float = 0.5,
+                          min_parts: int = 8, max_parts: int = 200,
                           sample_size: int = 200, seed: int = 0) -> List[str]:
-        """Suggest assemblies that make good demo queries (strong, clean top-1 matches).
+        """Suggest assemblies that make good demo queries (a strong top-K neighborhood).
 
-        Samples in-corpus assemblies within a part-count band, ranks them by their best
-        match score, and returns the top ``n`` ids. This is only a convenience for
-        building tidy notebook galleries; it is not needed for normal retrieval.
+        Samples in-corpus assemblies within a part-count band and ranks each by how good
+        its whole top-``top_k`` result set is, not just its single best match - so the
+        chosen queries showcase several similar assemblies at once. The ranking key is
+        (number of results clearing ``good_score``, then mean score of those results), and
+        only queries that return a full top-``top_k`` set are considered. Returns the top
+        ``n`` ids. This is a convenience for building notebook galleries; it is not needed
+        for normal retrieval.
         """
         import random
 
@@ -344,9 +349,14 @@ class AssemblyMatcher:
 
         ranked = []
         for q in sample:
-            top1 = self.search(q, top_k=1, candidate_k=10, method="hungarian",
-                               use_idf=True, n_jobs=8)
-            if top1:
-                ranked.append((top1[0]["score"], q))
+            res = self.search(q, top_k=top_k, candidate_k=10, method="hungarian",
+                              use_idf=True, n_jobs=8)
+            if len(res) < top_k:
+                continue
+            good = [r["score"] for r in res if r["score"] >= good_score]
+            if not good:
+                continue
+            mean_good = sum(good) / len(good)
+            ranked.append((len(good), mean_good, q))
         ranked.sort(reverse=True)
-        return [q for _, q in ranked[:n]]
+        return [q for _, _, q in ranked[:n]]
