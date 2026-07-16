@@ -357,23 +357,6 @@ EXPERT_NOTES: dict[str, str] = {
     ),
 }
 
-# Short qualitative description of the geometry an engineer would read off the
-# part image. Kept at the family level so it stays truthful without claiming a
-# per-part measurement the mock backend does not actually make.
-CATEGORY_CHARACTERISTICS: dict[str, str] = {
-    "bearing": "Concentric ground rings with rolling elements; precise bore and raceways.",
-    "bolt": "Externally threaded shank with a formed hex or socket head.",
-    "bracket": "L-shaped mounting plate with bores, oblong slots, and gusset ribs.",
-    "coupling": "Cylindrical hub with a central bore, keyway, and set-screw holes.",
-    "flange": "Flat disc with a bolt-hole circle and a raised sealing face.",
-    "gear": "External spur/helical teeth around a central bore; web with lightening holes or a raised hub.",
-    "nut": "Internally threaded hex prism, optionally flanged.",
-    "pulley": "Grooved rim (V-belt or timing) around a bored hub.",
-    "screw": "Threaded shank with a recessed drive head.",
-    "shaft": "Turned cylinder with stepped diameters, keyways, and journals.",
-}
-DEFAULT_CHARACTERISTICS = "Machined mechanical component with bores and finished faces."
-
 # --- Realistic PLM messiness -------------------------------------------------
 # Real metadata stores rarely hold one clean spelling per grade. The same
 # material shows up as a trade name, a DIN/EN number, an ISO designation, or a
@@ -483,7 +466,6 @@ def metadata_for(path: str) -> dict:
     cost = round(compute_true_cost_from_equation(material, process, features) * (1 + noise), 2)
     return {
         "PartFamily": category.capitalize() if category else "Machined Part",
-        "Characteristics": CATEGORY_CHARACTERISTICS.get(category, DEFAULT_CHARACTERISTICS),
         "Material": material,
         "Process": process,
         "HeatTreatment": heat_treatment,
@@ -521,16 +503,32 @@ def short_id(path: str) -> str:
 
 
 def display_hits(hits, metadata_by_id: Mapping[str, dict]):
-    """Return a ``(hits, metadata_by_id)`` pair with ids shortened to
-    ``short_id`` for compact display in ``hits_table``.
+    """Return a ``(hits, metadata_by_id)`` pair prepared for compact display in
+    ``hits_table``:
 
-    The original ``hits`` (full-path ids) still needs to be passed to
-    ``predictor.infer`` and friends — only use this shortened copy for display.
+    - ids are shortened to ``short_id`` ("<family>/<file>") instead of the full
+      absolute path;
+    - a messy ``Material`` alias (a DIN/EN number or shop code, e.g. "1.7147")
+      is annotated with the canonical grade it resolves to, e.g.
+      ``"1.7147  (\u2192 Case-Hardening Steel (20MnCr5))"``, so it doesn't read like
+      a typo. Already-canonical or unrecognized values are left unchanged.
+
+    The original ``hits``/``metadata_by_id`` (full-path ids, raw Material tags)
+    still need to be passed to ``predictor.infer`` and friends — only use this
+    prepared copy for display.
     """
     from types import SimpleNamespace
 
     short_hits = [SimpleNamespace(id=short_id(h.id), score=h.score) for h in hits]
-    short_metadata = {short_id(pid): meta for pid, meta in metadata_by_id.items()}
+    short_metadata = {}
+    for pid, meta in metadata_by_id.items():
+        annotated = dict(meta)
+        raw_material = annotated.get("Material")
+        if raw_material is not None:
+            canonical = canonical_material(raw_material)
+            if canonical and canonical != raw_material:
+                annotated["Material"] = f"{raw_material}  (\u2192 {canonical})"
+        short_metadata[short_id(pid)] = annotated
     return short_hits, short_metadata
 
 
@@ -602,8 +600,8 @@ class SyntheticPLM:
       same-stem duplicate are stripped — otherwise the predictor would just copy
       the query's own record instead of aggregating from genuine neighbours.
     * **The remaining ids follow a 50 / 30 / 20 mix:** ~50 % full records,
-      ~30 % only the textual tags (family, characteristics, material, process,
-      heat treatment, route) with the numeric estimates pending, ~20 % empty.
+      ~30 % only the textual tags (family, material, process, heat treatment,
+      route) with the numeric estimates pending, ~20 % empty.
 
     Because neighbours of a shape query belong to the same family, agreement on
     the process route and primary process arises naturally from the data — no
@@ -613,7 +611,7 @@ class SyntheticPLM:
 
     NUMERIC_FIELDS: tuple[str, ...] = ("Cost",)
     TEXTUAL_FIELDS: tuple[str, ...] = (
-        "PartFamily", "Characteristics", "Material", "Process", "HeatTreatment", "ProcessRoute",
+        "PartFamily", "Material", "Process", "HeatTreatment", "ProcessRoute",
     )
 
     _FULL_BUCKET_CEILING = 6      # 0-5 → ~50 % full
