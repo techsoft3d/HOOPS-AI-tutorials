@@ -41,6 +41,9 @@ class ScalingPoint:
     error: str | None
     pipeline_metrics: dict[str, float] | None = None
     inference_metrics: dict[str, float | int] | None = None
+    encoding_storage_mode: str = "directory"
+    encoding_pack_max_bodies: int = 32
+    encoding_pack_max_bytes: int = 64 * 1024**2
 
 
 def _parse_args() -> argparse.Namespace:
@@ -57,10 +60,13 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--model-name", default=DEFAULT_MODEL_NAME)
     parser.add_argument("--workers", type=int, nargs="+", default=DEFAULT_WORKERS)
     parser.add_argument("--limit", type=int, default=None)
-    parser.add_argument("--inference-graph-mode", choices=("file", "memory"), default="file")
+    parser.add_argument("--inference-graph-mode", choices=("file", "memory"), default="memory")
+    parser.add_argument("--encoding-storage-mode", choices=("directory", "packed"), default="packed")
+    parser.add_argument("--encoding-pack-max-bodies", type=int, default=32)
+    parser.add_argument("--encoding-pack-max-bytes", type=int, default=64 * 1024**2)
     parser.add_argument("--inference-batch-size", type=int, default=32)
-    parser.add_argument("--inference-memory-prefetch-depth", type=int, default=0)
-    parser.add_argument("--inference-memory-workers", type=int, default=1)
+    parser.add_argument("--inference-memory-prefetch-depth", type=int, default=2)
+    parser.add_argument("--inference-memory-workers", type=int, default=4)
     parser.add_argument(
         "--output-dir",
         type=pathlib.Path,
@@ -90,6 +96,10 @@ def _validate_args(args: argparse.Namespace) -> None:
         raise ValueError("--inference-memory-prefetch-depth must be non-negative.")
     if args.inference_memory_workers <= 0:
         raise ValueError("--inference-memory-workers must be positive.")
+    if args.encoding_pack_max_bodies < 0 or args.encoding_pack_max_bytes < 0:
+        raise ValueError("Pack rotation targets must be non-negative.")
+    if args.encoding_storage_mode == "packed" and args.inference_graph_mode != "memory":
+        raise ValueError("Packed benchmarks require memory inference.")
 
 
 def _load_cad_files(dataset: pathlib.Path, limit: int | None) -> list[str]:
@@ -133,6 +143,9 @@ def _run_point(args: argparse.Namespace) -> None:
         show_progress=True,
         specifications={
             "inference_graph_mode": args.inference_graph_mode,
+            "encoding_storage_mode": args.encoding_storage_mode,
+            "encoding_pack_max_bodies": args.encoding_pack_max_bodies,
+            "encoding_pack_max_bytes": args.encoding_pack_max_bytes,
             "inference_batch_size": args.inference_batch_size,
             "inference_memory_prefetch_depth": args.inference_memory_prefetch_depth,
             "inference_memory_workers": args.inference_memory_workers,
@@ -157,6 +170,9 @@ def _run_point(args: argparse.Namespace) -> None:
         error=None,
         pipeline_metrics=batch.metadata.get("pipeline_metrics"),
         inference_metrics=batch.metadata.get("inference_metrics"),
+        encoding_storage_mode=args.encoding_storage_mode,
+        encoding_pack_max_bodies=args.encoding_pack_max_bodies,
+        encoding_pack_max_bytes=args.encoding_pack_max_bytes,
     )
     args.point_result.parent.mkdir(parents=True, exist_ok=True)
     args.point_result.write_text(json.dumps(asdict(point), indent=2), encoding="utf-8")
@@ -242,6 +258,11 @@ def _run_controller(args: argparse.Namespace) -> None:
         payload = json.loads(results_path.read_text(encoding="utf-8"))
         run_dir = results_path.parent
         metadata = payload["metadata"]
+        for key, default in (("encoding_storage_mode", "directory"),
+                     ("encoding_pack_max_bodies", 32),
+                     ("encoding_pack_max_bytes", 64 * 1024**2)):
+            if metadata.get(key, default) != getattr(args, key):
+                raise ValueError(f"Cannot resume with a different {key}.")
         points = [ScalingPoint(**point) for point in payload.get("results", [])]
     else:
         run_name = datetime.now(timezone.utc).strftime("gpu_embed_shape_batch_%Y%m%dT%H%M%SZ")
@@ -255,6 +276,9 @@ def _run_controller(args: argparse.Namespace) -> None:
             "workers": args.workers,
             "limit": args.limit,
             "inference_graph_mode": args.inference_graph_mode,
+            "encoding_storage_mode": args.encoding_storage_mode,
+            "encoding_pack_max_bodies": args.encoding_pack_max_bodies,
+            "encoding_pack_max_bytes": args.encoding_pack_max_bytes,
             "inference_batch_size": args.inference_batch_size,
             "inference_memory_prefetch_depth": args.inference_memory_prefetch_depth,
             "inference_memory_workers": args.inference_memory_workers,
@@ -285,6 +309,9 @@ def _run_controller(args: argparse.Namespace) -> None:
             "--model-name", args.model_name,
             "--workers", str(workers),
             "--inference-graph-mode", args.inference_graph_mode,
+            "--encoding-storage-mode", args.encoding_storage_mode,
+            "--encoding-pack-max-bodies", str(args.encoding_pack_max_bodies),
+            "--encoding-pack-max-bytes", str(args.encoding_pack_max_bytes),
             "--inference-batch-size", str(args.inference_batch_size),
             "--inference-memory-prefetch-depth", str(args.inference_memory_prefetch_depth),
             "--inference-memory-workers", str(args.inference_memory_workers),

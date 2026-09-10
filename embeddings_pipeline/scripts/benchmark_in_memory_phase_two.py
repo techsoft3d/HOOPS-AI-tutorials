@@ -48,6 +48,193 @@ class ConversionMeasurement:
     seconds: float
 
 
+@dataclass(frozen=True)
+class PackedBodyReference:
+    source: str
+    member: str
+    pack_path: str | None
+    num_nodes: float
+
+
+@dataclass
+class PackMeasurement:
+    mode: str
+    repetition: int
+    bodies: int = 0
+    write_seconds: float = 0.0
+    open_seconds: float = 0.0
+    read_seconds: float = 0.0
+    close_seconds: float = 0.0
+    delete_seconds: float = 0.0
+    index_seconds: float = 0.0
+    physical_files: int = 0
+    physical_bytes: int = 0
+    peak_private_gb: float = 0.0
+
+
+def _profile_packs(records: list[Any], run_dir: pathlib.Path, repetitions: int) -> None:
+    """Compare direct serialization and balanced reads from the same decoded bodies."""
+    import torch
+    import numpy as np
+
+    from hoops_ai.dataset.torch_adapter import BalancedLoadBatchSampler
+    from hoops_ai.ml.EXPERIMENTAL.flow_model_embedding import EmbeddingFlowModel
+    from hoops_ai.storage.datastorage._sqlite_pack import PackedOptStorage, SQLitePack
+    from hoops_ai.storage.datastorage.zarr_storage_handler import OptStorage
+
+    sources = [(path, nodes) for record in records
+               for path, nodes in zip(record.body_store_paths, record.num_nodes_by_body)]
+    model = EmbeddingFlowModel()
+    measurements: list[PackMeasurement] = []
+    modes = ("directory", "pack16", "pack32", "pack_all")
+    byte_budget = 64 * 1024**2
+
+    def decoded_bytes(value: Any) -> int:
+        if isinstance(value, np.ndarray):
+            return value.nbytes
+        if isinstance(value, dict):
+            return sum(decoded_bytes(child) for child in value.values())
+        return 0
+
+    def sample(storage: Any) -> tuple:
+        handler = model._convert_encoded_data_to_graph_handlers(
+            storage, include_connectivity=False, direct_optional_checks=True,
+        )[0]
+        return model._prepare_model_input_from_handler(handler, include_duplicate_signature=False)
+
+    for repetition in range(repetitions):
+        order = modes[repetition % len(modes):] + modes[:repetition % len(modes)]
+        for mode in order:
+            output = run_dir / f"pack_probe_{repetition}_{mode}"
+            output.mkdir()
+            measurement = PackMeasurement(mode=mode, repetition=repetition)
+            references: list[PackedBodyReference] = []
+            writer: SQLitePack | None = None
+            reader: SQLitePack | None = None
+            pack_index = 0
+            pack_bodies = 0
+            pack_bytes = 0
+            limit = {"directory": 0, "pack16": 16, "pack32": 32, "pack_all": 0}[mode]
+            sampler = ResourceSampler(torch, "cpu")
+            sampler.start()
+            try:
+                for body_index, (source_path, num_nodes) in enumerate(sources):
+                    source = OptStorage(source_path)
+                    fields = {key: source.load_data(key) for key in source.get_keys()}
+                    metadata = source.get_metadata_dict()
+                    body_bytes = decoded_bytes(fields)
+                    started = time.perf_counter()
+                    member = str(output / f"body_{body_index}")
+                    pack_path: str | None = None
+                    if mode == "directory":
+                        storage = OptStorage(member)
+                        for key, value in fields.items():
+                            storage.save_data(key, value)
+                        for key, value in metadata.items():
+                            storage.save_metadata(key, value)
+                        storage.flush_metadata()
+                    else:
+                        if writer is not None and (
+                            (limit and pack_bodies >= limit)
+                            or (pack_bodies and pack_bytes + body_bytes > byte_budget)
+                        ):
+                            writer.close()
+                            writer = None
+                            pack_index += 1
+                        if writer is None:
+                            writer = SQLitePack(output / f"worker_{pack_index}.data")
+                            pack_bodies = 0
+                            pack_bytes = 0
+                        with writer.transaction():
+                            storage = PackedOptStorage(writer, member)
+                            for key, value in fields.items():
+                                storage.save_data(key, value)
+                            for key, value in metadata.items():
+                                storage.save_metadata(key, value)
+                            storage.flush_metadata()
+                        pack_path = str(writer.path)
+                        pack_bodies += 1
+                        pack_bytes += body_bytes
+                    measurement.write_seconds += time.perf_counter() - started
+                    references.append(PackedBodyReference(source_path, member, pack_path, num_nodes))
+                    del fields, metadata, storage, source
+                if writer is not None:
+                    started = time.perf_counter()
+                    writer.close()
+                    writer = None
+                    measurement.write_seconds += time.perf_counter() - started
+
+                started = time.perf_counter()
+                (output / "body_index.json").write_text(
+                    json.dumps([asdict(reference) for reference in references]), encoding="utf-8",
+                )
+                measurement.index_seconds = time.perf_counter() - started
+                batches = BalancedLoadBatchSampler(
+                    [reference.num_nodes for reference in references], batch_size=128,
+                    shuffle=False, drop_last=False,
+                )
+                for indices in batches:
+                    for body_index in indices:
+                        reference = references[body_index]
+                        started = time.perf_counter()
+                        if reference.pack_path is None:
+                            storage = OptStorage(reference.member)
+                        else:
+                            if reader is None or str(reader.path) != reference.pack_path:
+                                if reader is not None:
+                                    reader.close()
+                                reader = SQLitePack(pathlib.Path(reference.pack_path), read_only=True)
+                            storage = PackedOptStorage(reader, reference.member)
+                        measurement.open_seconds += time.perf_counter() - started
+                        started = time.perf_counter()
+                        actual = sample(storage)
+                        measurement.read_seconds += time.perf_counter() - started
+                        expected = sample(OptStorage(reference.source))
+                        for actual_value, expected_value in zip(actual, expected):
+                            if actual_value is None or expected_value is None:
+                                assert actual_value is expected_value
+                            else:
+                                torch.testing.assert_close(actual_value, expected_value, rtol=0, atol=0)
+                        measurement.bodies += 1
+                        del actual, expected, storage
+                if reader is not None:
+                    started = time.perf_counter()
+                    reader.close()
+                    reader = None
+                    measurement.close_seconds = time.perf_counter() - started
+                physical_paths = [path for path in output.rglob("*") if path.is_file()]
+                measurement.physical_files = len(physical_paths)
+                measurement.physical_bytes = sum(path.stat().st_size for path in physical_paths)
+            finally:
+                if writer is not None:
+                    writer.close()
+                if reader is not None:
+                    reader.close()
+                measurement.peak_private_gb, _ = sampler.stop()
+                started = time.perf_counter()
+                shutil.rmtree(output)
+                measurement.delete_seconds = time.perf_counter() - started
+            measurements.append(measurement)
+            print(json.dumps(asdict(measurement)), flush=True)
+
+    summary = {
+        mode: {field: statistics.median(getattr(row, field) for row in measurements if row.mode == mode)
+               for field in ("write_seconds", "open_seconds", "read_seconds", "close_seconds",
+                             "index_seconds", "delete_seconds", "physical_files", "physical_bytes",
+                             "peak_private_gb")}
+        for mode in modes
+    }
+    payload = {
+        "summary": summary, "measurements": [asdict(row) for row in measurements],
+        "sources": [asdict(record) for record in records], "decoded_byte_budget": byte_budget,
+        "note": "Source reads and exact parity checks excluded from timings; one body staged, "
+                "one reader handle, 4 MiB SQLite page cache, commit per body, rotated warm-cache runs. "
+                "pack_all has no body-count limit but retains the byte cap. Not encoder end-to-end timing.",
+    }
+    (run_dir / "pack_profile.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    print(json.dumps(summary, indent=2), flush=True)
+
+
 class ReadOnlyMetadataCache(MutableMapping[str, bytes]):
     """Cache only Zarr metadata, including missing keys, within one body read."""
 
@@ -304,6 +491,7 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--workers", type=int, default=20)
     parser.add_argument("--profile-conversion", action="store_true")
+    parser.add_argument("--profile-packs", action="store_true")
     parser.add_argument("--profile-repetitions", type=int, default=5)
     parser.add_argument("--profile-sample-spread", action="store_true",
                         help="Select evenly spaced sorted CAD paths instead of the first paths.")
@@ -401,9 +589,12 @@ def main() -> None:
     if not encoded_records:
         raise RuntimeError("No CAD files were encoded successfully.")
 
-    if args.profile_conversion:
+    if args.profile_conversion or args.profile_packs:
         try:
-            _profile_conversion(encoded_records, run_dir, args.profile_repetitions)
+            if args.profile_packs:
+                _profile_packs(encoded_records, run_dir, args.profile_repetitions)
+            else:
+                _profile_conversion(encoded_records, run_dir, args.profile_repetitions)
         finally:
             shutil.rmtree(encoded_dir, ignore_errors=True)
         return
