@@ -1,13 +1,19 @@
 """Benchmark end-to-end GPU embed_shape_batch scaling and create Toshi-style plots."""
 
 import argparse
+from contextlib import contextmanager
 import csv
 import json
+import logging
 import os
 import pathlib
 import subprocess
 import sys
+from threading import Event, Thread
 import time
+from types import SimpleNamespace
+from unittest.mock import patch
+from collections.abc import Iterator
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Any
@@ -23,6 +29,78 @@ DEFAULT_CHECKPOINT = (
     / "trained_ml_models"
     / "ts3d_2M_hoops_embeddings_SIGNAL-preview.ckpt"
 )
+
+
+@dataclass
+class _RunResources:
+    temporary_files: int = 0
+    temporary_directories: int = 0
+    temporary_bytes: int = 0
+    disk_scan_seconds: float = 0.0
+    parent_peak_rss_bytes: int = 0
+    workers_peak_rss_bytes: int = 0
+    combined_peak_rss_bytes: int = 0
+    memory_samples: int = 0
+    sampling_error: str | None = None
+
+    def scan_cache(self, path: pathlib.Path) -> None:
+        started = time.perf_counter()
+        for root, directories, files in os.walk(path):
+            self.temporary_directories += len(directories)
+            for name in files:
+                self.temporary_files += 1
+                self.temporary_bytes += (pathlib.Path(root) / name).stat().st_size
+        self.disk_scan_seconds += time.perf_counter() - started
+
+
+@contextmanager
+def _sample_memory(resources: _RunResources) -> Iterator[None]:
+    import psutil
+
+    parent = psutil.Process()
+    stopped = Event()
+
+    def sample() -> None:
+        try:
+            while not stopped.is_set():
+                parent_rss = parent.memory_info().rss
+                worker_rss = 0
+                for child in parent.children(recursive=True):
+                    try:
+                        worker_rss += child.memory_info().rss
+                    except psutil.NoSuchProcess:
+                        logging.getLogger(__name__).debug("Worker exited during RSS sampling")
+                resources.parent_peak_rss_bytes = max(resources.parent_peak_rss_bytes, parent_rss)
+                resources.workers_peak_rss_bytes = max(resources.workers_peak_rss_bytes, worker_rss)
+                resources.combined_peak_rss_bytes = max(resources.combined_peak_rss_bytes, parent_rss + worker_rss)
+                resources.memory_samples += 1
+                stopped.wait(0.1)
+        except Exception as exc:
+            resources.sampling_error = str(exc)
+            logging.getLogger(__name__).exception("Memory sampler failed")
+
+    thread = Thread(target=sample, name="benchmark-memory")
+    thread.start()
+    try:
+        yield
+    finally:
+        stopped.set()
+        thread.join()
+
+
+class _PhaseTimings(logging.Handler):
+    def __init__(self, resources: _RunResources | None = None) -> None:
+        super().__init__()
+        self.seconds: dict[str, float] = {}
+        self.resources = resources
+
+    def emit(self, record: logging.LogRecord) -> None:
+        phase = getattr(record, "embedding_phase", None)
+        if phase is not None:
+            elapsed = record.embedding_seconds
+            if phase == "cleanup" and self.resources is not None:
+                elapsed -= self.resources.disk_scan_seconds
+            self.seconds[phase] = self.seconds.get(phase, 0.0) + elapsed
 
 
 @dataclass(frozen=True)
@@ -42,8 +120,9 @@ class ScalingPoint:
     pipeline_metrics: dict[str, float] | None = None
     inference_metrics: dict[str, float | int] | None = None
     encoding_storage_mode: str = "directory"
-    encoding_pack_max_bodies: int = 32
-    encoding_pack_max_bytes: int = 64 * 1024**2
+    encoding_pack_max_files: int = 8
+    raw_seconds: float | None = None
+    resources: dict[str, Any] | None = None
 
 
 def _parse_args() -> argparse.Namespace:
@@ -61,9 +140,8 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--workers", type=int, nargs="+", default=DEFAULT_WORKERS)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--inference-graph-mode", choices=("file", "memory"), default="memory")
-    parser.add_argument("--encoding-storage-mode", choices=("directory", "packed"), default="packed")
-    parser.add_argument("--encoding-pack-max-bodies", type=int, default=32)
-    parser.add_argument("--encoding-pack-max-bytes", type=int, default=64 * 1024**2)
+    parser.add_argument("--encoding-storage-mode", choices=("directory", "packed"), default="directory")
+    parser.add_argument("--encoding-pack-max-files", type=int, default=8)
     parser.add_argument("--inference-batch-size", type=int, default=32)
     parser.add_argument("--inference-memory-prefetch-depth", type=int, default=2)
     parser.add_argument("--inference-memory-workers", type=int, default=4)
@@ -96,8 +174,8 @@ def _validate_args(args: argparse.Namespace) -> None:
         raise ValueError("--inference-memory-prefetch-depth must be non-negative.")
     if args.inference_memory_workers <= 0:
         raise ValueError("--inference-memory-workers must be positive.")
-    if args.encoding_pack_max_bodies < 0 or args.encoding_pack_max_bytes < 0:
-        raise ValueError("Pack rotation targets must be non-negative.")
+    if args.encoding_pack_max_files <= 0:
+        raise ValueError("--encoding-pack-max-files must be positive.")
     if args.encoding_storage_mode == "packed" and args.inference_graph_mode != "memory":
         raise ValueError("Packed benchmarks require memory inference.")
 
@@ -109,7 +187,7 @@ def _load_cad_files(dataset: pathlib.Path, limit: int | None) -> list[str]:
         storage_provider=LocalStorageProvider(directory_path=dataset),
         formats=CAD_FORMATS,
     )
-    cad_files = sorted(str(path) for path in retriever.get_file_list())
+    cad_files = sorted(str(pathlib.Path(path).resolve()) for path in retriever.get_file_list())
     if limit is not None:
         cad_files = cad_files[:limit]
     if not cad_files:
@@ -119,9 +197,11 @@ def _load_cad_files(dataset: pathlib.Path, limit: int | None) -> list[str]:
 
 def _run_point(args: argparse.Namespace) -> None:
     import torch
+    import numpy as np
 
     import hoops_ai
     from hoops_ai.ml.embeddings import HOOPSEmbeddings
+    from hoops_ai.ml.embeddings import embedding_batch_pipeline
 
     license_key = os.environ.get("HOOPS_AI_LICENSE")
     if not license_key:
@@ -135,25 +215,49 @@ def _run_point(args: argparse.Namespace) -> None:
         HOOPSEmbeddings.register_model(args.model_name, str(args.checkpoint.resolve()))
 
     embedder = HOOPSEmbeddings(model=args.model_name, device="cuda")
-    torch.cuda.synchronize()
-    started = time.perf_counter()
-    batch = embedder.embed_shape_batch(
-        cad_files,
-        num_workers=args.point_workers,
-        show_progress=True,
-        specifications={
-            "inference_graph_mode": args.inference_graph_mode,
-            "encoding_storage_mode": args.encoding_storage_mode,
-            "encoding_pack_max_bodies": args.encoding_pack_max_bodies,
-            "encoding_pack_max_bytes": args.encoding_pack_max_bytes,
-            "inference_batch_size": args.inference_batch_size,
-            "inference_memory_prefetch_depth": args.inference_memory_prefetch_depth,
-            "inference_memory_workers": args.inference_memory_workers,
-            "collect_inference_metrics": True,
-        },
-    )
-    torch.cuda.synchronize()
-    seconds = time.perf_counter() - started
+    phase_logger = logging.getLogger("hoops_ai.ml.embeddings.embedding_batch_pipeline")
+    resources = _RunResources()
+    phase_timings = _PhaseTimings(resources)
+    previous_level = phase_logger.level
+    phase_logger.setLevel(logging.INFO)
+    phase_logger.addHandler(phase_timings)
+    original_remove = embedding_batch_pipeline.shutil.rmtree
+
+    def measured_remove(path: pathlib.Path) -> None:
+        resources.scan_cache(path)
+        original_remove(path)
+
+    try:
+        with _sample_memory(resources), patch.object(
+            embedding_batch_pipeline, "shutil", SimpleNamespace(rmtree=measured_remove),
+        ):
+            torch.cuda.synchronize()
+            started = time.perf_counter()
+            batch = embedder.embed_shape_batch(
+                cad_files,
+                num_workers=args.point_workers,
+                show_progress=sys.stderr.isatty(),
+                specifications={
+                    "inference_graph_mode": args.inference_graph_mode,
+                    "encoding_storage_mode": args.encoding_storage_mode,
+                    "encoding_pack_max_files": args.encoding_pack_max_files,
+                    "inference_batch_size": args.inference_batch_size,
+                    "inference_prefetch_depth": args.inference_memory_prefetch_depth,
+                    "inference_prepare_workers": args.inference_memory_workers,
+                    "inference_num_workers": 2,
+                    "inference_prefetch_factor": 2,
+                    "balance_inference_batches": True,
+                    "generate_images": False,
+                    "inference_phase_diagnostics": True,
+                },
+            )
+            torch.cuda.synchronize()
+            raw_seconds = time.perf_counter() - started
+    finally:
+        phase_logger.removeHandler(phase_timings)
+        phase_logger.setLevel(previous_level)
+        phase_timings.close()
+    seconds = raw_seconds - resources.disk_scan_seconds
 
     failed_files = int(batch.metadata.get("failed_count", 0))
     successful_files = max(0, len(cad_files) - failed_files)
@@ -168,13 +272,19 @@ def _run_point(args: argparse.Namespace) -> None:
         successful_files_per_second=successful_files / seconds,
         status="ok",
         error=None,
-        pipeline_metrics=batch.metadata.get("pipeline_metrics"),
+        pipeline_metrics=phase_timings.seconds,
         inference_metrics=batch.metadata.get("inference_metrics"),
         encoding_storage_mode=args.encoding_storage_mode,
-        encoding_pack_max_bodies=args.encoding_pack_max_bodies,
-        encoding_pack_max_bytes=args.encoding_pack_max_bytes,
+        encoding_pack_max_files=args.encoding_pack_max_files,
+        raw_seconds=raw_seconds,
+        resources=asdict(resources),
     )
     args.point_result.parent.mkdir(parents=True, exist_ok=True)
+    np.savez(
+        args.point_result.with_suffix(".npz"),
+        ids=np.asarray(batch.ids, dtype=str), values=batch.values,
+        inputs=np.asarray(cad_files, dtype=str),
+    )
     args.point_result.write_text(json.dumps(asdict(point), indent=2), encoding="utf-8")
     if args.point_errors is not None:
         errors = batch.metadata.get("errors", [])
@@ -258,9 +368,10 @@ def _run_controller(args: argparse.Namespace) -> None:
         payload = json.loads(results_path.read_text(encoding="utf-8"))
         run_dir = results_path.parent
         metadata = payload["metadata"]
+        if metadata.get("benchmark_schema_version") != 2:
+            raise ValueError("Older benchmark results cannot be resumed with instrumented packing measurements.")
         for key, default in (("encoding_storage_mode", "directory"),
-                     ("encoding_pack_max_bodies", 32),
-                     ("encoding_pack_max_bytes", 64 * 1024**2)):
+                     ("encoding_pack_max_files", 8)):
             if metadata.get(key, default) != getattr(args, key):
                 raise ValueError(f"Cannot resume with a different {key}.")
         points = [ScalingPoint(**point) for point in payload.get("results", [])]
@@ -269,6 +380,7 @@ def _run_controller(args: argparse.Namespace) -> None:
         run_dir = args.output_dir.resolve() / run_name
         results_path = run_dir / "results.json"
         metadata = {
+            "benchmark_schema_version": 2,
             "dataset": str(args.dataset.resolve()),
             "checkpoint": str(args.checkpoint.resolve()),
             "model_name": args.model_name,
@@ -277,11 +389,12 @@ def _run_controller(args: argparse.Namespace) -> None:
             "limit": args.limit,
             "inference_graph_mode": args.inference_graph_mode,
             "encoding_storage_mode": args.encoding_storage_mode,
-            "encoding_pack_max_bodies": args.encoding_pack_max_bodies,
-            "encoding_pack_max_bytes": args.encoding_pack_max_bytes,
+            "encoding_pack_max_files": args.encoding_pack_max_files,
             "inference_batch_size": args.inference_batch_size,
             "inference_memory_prefetch_depth": args.inference_memory_prefetch_depth,
             "inference_memory_workers": args.inference_memory_workers,
+            "memory_sample_interval_seconds": 0.1,
+            "timing_policy": "seconds excludes disk scan only; raw_seconds includes instrumentation; both include cleanup",
             "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         }
         points = []
@@ -310,8 +423,7 @@ def _run_controller(args: argparse.Namespace) -> None:
             "--workers", str(workers),
             "--inference-graph-mode", args.inference_graph_mode,
             "--encoding-storage-mode", args.encoding_storage_mode,
-            "--encoding-pack-max-bodies", str(args.encoding_pack_max_bodies),
-            "--encoding-pack-max-bytes", str(args.encoding_pack_max_bytes),
+            "--encoding-pack-max-files", str(args.encoding_pack_max_files),
             "--inference-batch-size", str(args.inference_batch_size),
             "--inference-memory-prefetch-depth", str(args.inference_memory_prefetch_depth),
             "--inference-memory-workers", str(args.inference_memory_workers),
