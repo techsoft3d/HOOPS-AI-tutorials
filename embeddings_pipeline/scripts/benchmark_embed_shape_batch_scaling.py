@@ -1,6 +1,10 @@
-"""Benchmark end-to-end GPU embed_shape_batch scaling and create Toshi-style plots."""
+"""Benchmark the public GPU embedding API across worker and batch-size settings.
+
+Each point runs in an isolated child process and records end-to-end and public phase timings.
+"""
 
 import argparse
+from collections.abc import Iterator
 from contextlib import contextmanager
 import csv
 import json
@@ -11,9 +15,6 @@ import subprocess
 import sys
 from threading import Event, Thread
 import time
-from types import SimpleNamespace
-from unittest.mock import patch
-from collections.abc import Iterator
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Any
@@ -21,7 +22,8 @@ from typing import Any
 
 CAD_FORMATS = [".stp", ".step", ".iges", ".igs"]
 DEFAULT_MODEL_NAME = "HOOPS Embeddings SIGNAL preview"
-DEFAULT_WORKERS = [4, 8, 12, 16, 20]
+DEFAULT_WORKERS = [24]
+DEFAULT_BATCH_SIZES = [32, 64, 128, 256]
 TUTORIAL_ROOT = pathlib.Path(__file__).resolve().parents[2]
 DEFAULT_CHECKPOINT = (
     TUTORIAL_ROOT
@@ -33,24 +35,11 @@ DEFAULT_CHECKPOINT = (
 
 @dataclass
 class _RunResources:
-    temporary_files: int = 0
-    temporary_directories: int = 0
-    temporary_bytes: int = 0
-    disk_scan_seconds: float = 0.0
     parent_peak_rss_bytes: int = 0
     workers_peak_rss_bytes: int = 0
     combined_peak_rss_bytes: int = 0
     memory_samples: int = 0
     sampling_error: str | None = None
-
-    def scan_cache(self, path: pathlib.Path) -> None:
-        started = time.perf_counter()
-        for root, directories, files in os.walk(path):
-            self.temporary_directories += len(directories)
-            for name in files:
-                self.temporary_files += 1
-                self.temporary_bytes += (pathlib.Path(root) / name).stat().st_size
-        self.disk_scan_seconds += time.perf_counter() - started
 
 
 @contextmanager
@@ -88,26 +77,12 @@ def _sample_memory(resources: _RunResources) -> Iterator[None]:
         thread.join()
 
 
-class _PhaseTimings(logging.Handler):
-    def __init__(self, resources: _RunResources | None = None) -> None:
-        super().__init__()
-        self.seconds: dict[str, float] = {}
-        self.resources = resources
-
-    def emit(self, record: logging.LogRecord) -> None:
-        phase = getattr(record, "embedding_phase", None)
-        if phase is not None:
-            elapsed = record.embedding_seconds
-            if phase == "cleanup" and self.resources is not None:
-                elapsed -= self.resources.disk_scan_seconds
-            self.seconds[phase] = self.seconds.get(phase, 0.0) + elapsed
-
-
 @dataclass(frozen=True)
 class ScalingPoint:
     """One end-to-end embed_shape_batch measurement."""
 
     workers: int
+    batch_size: int
     requested_files: int
     embedded_bodies: int
     successful_files: int
@@ -117,17 +92,14 @@ class ScalingPoint:
     successful_files_per_second: float | None
     status: str
     error: str | None
-    pipeline_metrics: dict[str, float] | None = None
-    inference_metrics: dict[str, float | int] | None = None
-    encoding_storage_mode: str = "directory"
-    encoding_pack_max_files: int = 8
-    raw_seconds: float | None = None
+    phase_seconds: dict[str, float] | None = None
     resources: dict[str, Any] | None = None
 
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Benchmark full GPU embed_shape_batch scaling with default specifications."
+        description="Benchmark the public GPU embedding API across worker and batch-size settings.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
         "--dataset",
@@ -137,14 +109,18 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--checkpoint", type=pathlib.Path, default=DEFAULT_CHECKPOINT)
     parser.add_argument("--model-name", default=DEFAULT_MODEL_NAME)
-    parser.add_argument("--workers", type=int, nargs="+", default=DEFAULT_WORKERS)
+    parser.add_argument("--workers", type=int, nargs="+", default=DEFAULT_WORKERS,
+                        help="Worker counts. Legacy releases load a GPU model per worker; reduce if memory is limited.")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--inference-graph-mode", choices=("file", "memory"), default="memory")
-    parser.add_argument("--encoding-storage-mode", choices=("directory", "packed"), default="directory")
+    parser.add_argument("--encoding-storage-mode", choices=("directory", "packed"), default="packed")
     parser.add_argument("--encoding-pack-max-files", type=int, default=8)
-    parser.add_argument("--inference-batch-size", type=int, default=32)
+    parser.add_argument(
+        "--inference-batch-sizes", type=int, nargs="+", default=DEFAULT_BATCH_SIZES,
+        help="Inference batch sizes. Each worker/batch-size pair runs in a fresh process.",
+    )
     parser.add_argument("--inference-memory-prefetch-depth", type=int, default=2)
-    parser.add_argument("--inference-memory-workers", type=int, default=4)
+    parser.add_argument("--inference-memory-workers", type=int, default=2)
     parser.add_argument(
         "--output-dir",
         type=pathlib.Path,
@@ -152,9 +128,18 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--resume-results", type=pathlib.Path, default=None)
     parser.add_argument("--point-workers", type=int, default=None, help=argparse.SUPPRESS)
+    parser.add_argument("--point-batch-size", type=int, default=None, help=argparse.SUPPRESS)
     parser.add_argument("--point-result", type=pathlib.Path, default=None, help=argparse.SUPPRESS)
     parser.add_argument("--point-errors", type=pathlib.Path, default=None, help=argparse.SUPPRESS)
     return parser.parse_args()
+
+
+def _benchmark_points(workers: list[int], batch_sizes: list[int]) -> list[tuple[int, int]]:
+    return [
+        (worker_count, batch_size)
+        for worker_count in workers
+        for batch_size in batch_sizes
+    ]
 
 
 def _validate_args(args: argparse.Namespace) -> None:
@@ -168,8 +153,8 @@ def _validate_args(args: argparse.Namespace) -> None:
         raise ValueError("Every worker count must be greater than one.")
     if args.limit is not None and args.limit <= 0:
         raise ValueError("--limit must be positive.")
-    if args.inference_batch_size <= 0:
-        raise ValueError("--inference-batch-size must be positive.")
+    if not args.inference_batch_sizes or any(size <= 0 for size in args.inference_batch_sizes):
+        raise ValueError("Every --inference-batch-sizes value must be positive.")
     if args.inference_memory_prefetch_depth < 0:
         raise ValueError("--inference-memory-prefetch-depth must be non-negative.")
     if args.inference_memory_workers <= 0:
@@ -201,7 +186,6 @@ def _run_point(args: argparse.Namespace) -> None:
 
     import hoops_ai
     from hoops_ai.ml.embeddings import HOOPSEmbeddings
-    from hoops_ai.ml.embeddings import embedding_batch_pipeline
 
     license_key = os.environ.get("HOOPS_AI_LICENSE")
     if not license_key:
@@ -215,54 +199,36 @@ def _run_point(args: argparse.Namespace) -> None:
         HOOPSEmbeddings.register_model(args.model_name, str(args.checkpoint.resolve()))
 
     embedder = HOOPSEmbeddings(model=args.model_name, device="cuda")
-    phase_logger = logging.getLogger("hoops_ai.ml.embeddings.embedding_batch_pipeline")
     resources = _RunResources()
-    phase_timings = _PhaseTimings(resources)
-    previous_level = phase_logger.level
-    phase_logger.setLevel(logging.INFO)
-    phase_logger.addHandler(phase_timings)
-    original_remove = embedding_batch_pipeline.shutil.rmtree
-
-    def measured_remove(path: pathlib.Path) -> None:
-        resources.scan_cache(path)
-        original_remove(path)
-
-    try:
-        with _sample_memory(resources), patch.object(
-            embedding_batch_pipeline, "shutil", SimpleNamespace(rmtree=measured_remove),
-        ):
-            torch.cuda.synchronize()
-            started = time.perf_counter()
-            batch = embedder.embed_shape_batch(
-                cad_files,
-                num_workers=args.point_workers,
-                show_progress=sys.stderr.isatty(),
-                specifications={
-                    "inference_graph_mode": args.inference_graph_mode,
-                    "encoding_storage_mode": args.encoding_storage_mode,
-                    "encoding_pack_max_files": args.encoding_pack_max_files,
-                    "inference_batch_size": args.inference_batch_size,
-                    "inference_prefetch_depth": args.inference_memory_prefetch_depth,
-                    "inference_prepare_workers": args.inference_memory_workers,
-                    "inference_num_workers": 2,
-                    "inference_prefetch_factor": 2,
-                    "balance_inference_batches": True,
-                    "generate_images": False,
-                    "inference_phase_diagnostics": True,
-                },
-            )
-            torch.cuda.synchronize()
-            raw_seconds = time.perf_counter() - started
-    finally:
-        phase_logger.removeHandler(phase_timings)
-        phase_logger.setLevel(previous_level)
-        phase_timings.close()
-    seconds = raw_seconds - resources.disk_scan_seconds
+    with _sample_memory(resources):
+        torch.cuda.synchronize()
+        started = time.perf_counter()
+        batch = embedder.embed_shape_batch(
+            cad_files,
+            num_workers=args.point_workers,
+            show_progress=sys.stderr.isatty(),
+            specifications={
+                "inference_graph_mode": args.inference_graph_mode,
+                "encoding_storage_mode": args.encoding_storage_mode,
+                "encoding_pack_max_files": args.encoding_pack_max_files,
+                "inference_batch_size": args.point_batch_size,
+                "inference_prefetch_depth": args.inference_memory_prefetch_depth,
+                "inference_prepare_workers": args.inference_memory_workers,
+                "inference_num_workers": 2,
+                "inference_prefetch_factor": 2,
+                "balance_inference_batches": True,
+                "generate_images": False,
+                "inference_phase_diagnostics": True,
+            },
+        )
+        torch.cuda.synchronize()
+        seconds = time.perf_counter() - started
 
     failed_files = int(batch.metadata.get("failed_count", 0))
     successful_files = max(0, len(cad_files) - failed_files)
     point = ScalingPoint(
         workers=args.point_workers,
+        batch_size=args.point_batch_size,
         requested_files=len(cad_files),
         embedded_bodies=len(batch.ids),
         successful_files=successful_files,
@@ -272,11 +238,7 @@ def _run_point(args: argparse.Namespace) -> None:
         successful_files_per_second=successful_files / seconds,
         status="ok",
         error=None,
-        pipeline_metrics=phase_timings.seconds,
-        inference_metrics=batch.metadata.get("inference_metrics"),
-        encoding_storage_mode=args.encoding_storage_mode,
-        encoding_pack_max_files=args.encoding_pack_max_files,
-        raw_seconds=raw_seconds,
+        phase_seconds=batch.metadata.get("phase_seconds"),
         resources=asdict(resources),
     )
     args.point_result.parent.mkdir(parents=True, exist_ok=True)
@@ -291,7 +253,7 @@ def _run_point(args: argparse.Namespace) -> None:
         args.point_errors.parent.mkdir(parents=True, exist_ok=True)
         args.point_errors.write_text(json.dumps(errors, indent=2), encoding="utf-8")
     print(
-        f"workers={point.workers} time={point.seconds:.1f}s "
+        f"workers={point.workers} batch_size={point.batch_size} time={point.seconds:.1f}s "
         f"input_files/s={point.input_files_per_second:.2f} "
         f"successful_files/s={point.successful_files_per_second:.2f} "
         f"failed={point.failed_files}",
@@ -326,33 +288,32 @@ def _write_toshi_plot(
 ) -> pathlib.Path:
     import matplotlib.pyplot as plt
 
-    successful = sorted((point for point in points if point.status == "ok"), key=lambda point: point.workers)
-    workers = [point.workers for point in successful]
-    seconds = [point.seconds for point in successful]
-    throughput = [getattr(point, throughput_field) for point in successful]
-
     figure, time_axis = plt.subplots(figsize=(8, 4.5))
     throughput_axis = time_axis.twinx()
-    time_line = time_axis.plot(workers, seconds, "o-", color="#1f77b4", label="time (s)")
-    throughput_line = throughput_axis.plot(
-        workers,
-        throughput,
-        "s--",
-        color="#e52521",
-        label="files/s",
-    )
+    lines = []
+    for workers in sorted({point.workers for point in points if point.status == "ok"}):
+        successful = sorted(
+            (point for point in points if point.status == "ok" and point.workers == workers),
+            key=lambda point: point.batch_size,
+        )
+        batch_sizes = [point.batch_size for point in successful]
+        lines.extend(time_axis.plot(
+            batch_sizes, [point.seconds for point in successful], "o-",
+            label=f"time, workers={workers}",
+        ))
+        lines.extend(throughput_axis.plot(
+            batch_sizes, [getattr(point, throughput_field) for point in successful], "s--",
+            label=f"files/s, workers={workers}",
+        ))
 
-    best_index = max(range(len(throughput)), key=throughput.__getitem__)
-    time_axis.axvline(workers[best_index], color="#777777", linestyle=":", alpha=0.8)
-    time_axis.set_xticks(workers)
-    time_axis.set_xlabel("num_workers")
+    time_axis.set_xticks(sorted({point.batch_size for point in points}))
+    time_axis.set_xlabel("inference_batch_size")
     time_axis.set_ylabel("time (s)", color="#1f77b4")
     throughput_axis.set_ylabel("files/s", color="#e52521")
     time_axis.tick_params(axis="y", labelcolor="#1f77b4")
     throughput_axis.tick_params(axis="y", labelcolor="#e52521")
     time_axis.grid(alpha=0.3)
     time_axis.set_title(title)
-    lines = time_line + throughput_line
     time_axis.legend(lines, [line.get_label() for line in lines], loc="upper center")
     figure.tight_layout()
 
@@ -368,11 +329,15 @@ def _run_controller(args: argparse.Namespace) -> None:
         payload = json.loads(results_path.read_text(encoding="utf-8"))
         run_dir = results_path.parent
         metadata = payload["metadata"]
-        if metadata.get("benchmark_schema_version") != 2:
-            raise ValueError("Older benchmark results cannot be resumed with instrumented packing measurements.")
-        for key, default in (("encoding_storage_mode", "directory"),
-                     ("encoding_pack_max_files", 8)):
-            if metadata.get(key, default) != getattr(args, key):
+        if metadata.get("benchmark_schema_version") != 4:
+            raise ValueError("Older results cannot be resumed with batch-size measurements.")
+        for key in ("dataset", "checkpoint", "model_name", "limit", "inference_graph_mode",
+                    "encoding_storage_mode", "encoding_pack_max_files", "inference_batch_sizes",
+                    "inference_memory_prefetch_depth", "inference_memory_workers"):
+            value = getattr(args, key)
+            if isinstance(value, pathlib.Path):
+                value = str(value.resolve())
+            if metadata.get(key) != value:
                 raise ValueError(f"Cannot resume with a different {key}.")
         points = [ScalingPoint(**point) for point in payload.get("results", [])]
     else:
@@ -380,7 +345,7 @@ def _run_controller(args: argparse.Namespace) -> None:
         run_dir = args.output_dir.resolve() / run_name
         results_path = run_dir / "results.json"
         metadata = {
-            "benchmark_schema_version": 2,
+            "benchmark_schema_version": 4,
             "dataset": str(args.dataset.resolve()),
             "checkpoint": str(args.checkpoint.resolve()),
             "model_name": args.model_name,
@@ -390,16 +355,16 @@ def _run_controller(args: argparse.Namespace) -> None:
             "inference_graph_mode": args.inference_graph_mode,
             "encoding_storage_mode": args.encoding_storage_mode,
             "encoding_pack_max_files": args.encoding_pack_max_files,
-            "inference_batch_size": args.inference_batch_size,
+            "inference_batch_sizes": args.inference_batch_sizes,
             "inference_memory_prefetch_depth": args.inference_memory_prefetch_depth,
             "inference_memory_workers": args.inference_memory_workers,
             "memory_sample_interval_seconds": 0.1,
-            "timing_policy": "seconds excludes disk scan only; raw_seconds includes instrumentation; both include cleanup",
+            "timing_policy": "Wall time around embed_shape_batch plus CUDA synchronization; includes API cleanup and worker setup, excludes parent model loading and output serialization.",
             "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         }
         points = []
 
-    completed_workers = {point.workers for point in points}
+    completed_points = {(point.workers, point.batch_size) for point in points}
     log_dir = run_dir / "logs"
     error_dir = run_dir / "errors"
     point_dir = run_dir / ".points"
@@ -407,13 +372,14 @@ def _run_controller(args: argparse.Namespace) -> None:
     error_dir.mkdir(parents=True, exist_ok=True)
     point_dir.mkdir(parents=True, exist_ok=True)
 
-    for workers in args.workers:
-        if workers in completed_workers:
-            print(f"skip completed workers={workers}", flush=True)
+    for workers, batch_size in _benchmark_points(args.workers, args.inference_batch_sizes):
+        if (workers, batch_size) in completed_points:
+            print(f"skip completed workers={workers} batch_size={batch_size}", flush=True)
             continue
 
-        point_result = point_dir / f"workers_{workers}.json"
-        point_errors = error_dir / f"workers_{workers}.json"
+        point_name = f"workers_{workers}_batch_{batch_size}"
+        point_result = point_dir / f"{point_name}.json"
+        point_errors = error_dir / f"{point_name}.json"
         command = [
             sys.executable,
             str(pathlib.Path(__file__).resolve()),
@@ -424,18 +390,22 @@ def _run_controller(args: argparse.Namespace) -> None:
             "--inference-graph-mode", args.inference_graph_mode,
             "--encoding-storage-mode", args.encoding_storage_mode,
             "--encoding-pack-max-files", str(args.encoding_pack_max_files),
-            "--inference-batch-size", str(args.inference_batch_size),
+            "--inference-batch-sizes", str(batch_size),
             "--inference-memory-prefetch-depth", str(args.inference_memory_prefetch_depth),
             "--inference-memory-workers", str(args.inference_memory_workers),
             "--point-workers", str(workers),
+            "--point-batch-size", str(batch_size),
             "--point-result", str(point_result),
             "--point-errors", str(point_errors),
         ]
         if args.limit is not None:
             command.extend(["--limit", str(args.limit)])
 
-        log_path = log_dir / f"workers_{workers}.log"
-        print(f"run embed_shape_batch workers={workers}; log={log_path}", flush=True)
+        log_path = log_dir / f"{point_name}.log"
+        print(
+            f"run embed_shape_batch workers={workers} batch_size={batch_size}; log={log_path}",
+            flush=True,
+        )
         with log_path.open("w", encoding="utf-8") as log_handle:
             process = subprocess.run(
                 command,
@@ -451,6 +421,7 @@ def _run_controller(args: argparse.Namespace) -> None:
             error = log_path.read_text(encoding="utf-8", errors="replace")[-12000:]
             point = ScalingPoint(
                 workers=workers,
+                batch_size=batch_size,
                 requested_files=0,
                 embedded_bodies=0,
                 successful_files=0,
@@ -462,10 +433,10 @@ def _run_controller(args: argparse.Namespace) -> None:
                 error=error or f"Child exited with code {process.returncode}",
             )
         points.append(point)
-        completed_workers.add(workers)
+        completed_points.add((workers, batch_size))
         _write_results(results_path, metadata, points)
         print(
-            f"recorded workers={workers} status={point.status} "
+            f"recorded workers={workers} batch_size={batch_size} status={point.status} "
             f"time={point.seconds or 0.0:.1f}s files/s={point.input_files_per_second or 0.0:.2f}",
             flush=True,
         )
@@ -475,18 +446,20 @@ def _run_controller(args: argparse.Namespace) -> None:
         raise RuntimeError(f"No successful points. See logs under {log_dir}")
 
     requested_count = successful[0].requested_files
-    metadata["best_input_throughput_workers"] = max(
-        successful, key=lambda point: point.input_files_per_second or 0.0
-    ).workers
-    metadata["best_successful_throughput_workers"] = max(
-        successful, key=lambda point: point.successful_files_per_second or 0.0
-    ).workers
+    best_input = max(successful, key=lambda point: point.input_files_per_second or 0.0)
+    best_successful = max(successful, key=lambda point: point.successful_files_per_second or 0.0)
+    metadata["best_input_throughput"] = {
+        "workers": best_input.workers, "batch_size": best_input.batch_size,
+    }
+    metadata["best_successful_throughput"] = {
+        "workers": best_successful.workers, "batch_size": best_successful.batch_size,
+    }
     input_plot = _write_toshi_plot(
         run_dir,
         points,
         "input_files_per_second",
         "gpu_embed_shape_batch_input_scaling.png",
-        f"GPU embed_shape_batch - num_workers scaling (n={requested_count:,})",
+        f"GPU embed_shape_batch - inference batch-size scaling (n={requested_count:,})",
     )
     successful_plot = _write_toshi_plot(
         run_dir,
@@ -505,8 +478,8 @@ def main() -> None:
     args = _parse_args()
     _validate_args(args)
     if args.point_workers is not None:
-        if args.point_result is None:
-            raise ValueError("--point-result is required with --point-workers.")
+        if args.point_result is None or args.point_batch_size is None:
+            raise ValueError("--point-result and --point-batch-size are required with --point-workers.")
         _run_point(args)
         return
     _run_controller(args)

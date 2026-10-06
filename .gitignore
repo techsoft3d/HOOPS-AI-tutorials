@@ -32,4 +32,13 @@ demo_images.ipynb
 **/too_heavy_files.log
 **/error_summary.json
 
+# Agentic session state: the config (.hoops-ai/agent.toml) is tracked, the runtime state is not
+.hoops-ai/*.db
+.hoops-ai/*.db-*
+.hoops-ai/sessions/
+.hoops-ai/knowledge/
+.hoops-ai/backups/
+
 *.env
+*.vscode
+*.hoops-ai
