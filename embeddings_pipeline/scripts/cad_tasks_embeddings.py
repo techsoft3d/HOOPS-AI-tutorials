@@ -1,8 +1,8 @@
 """Flow tasks of the HOOPS Embeddings data preparation.
 
 The encoding workers import this module, so it must not import torch. The workers only encode
-CAD files. The main process builds the training graph files through graph_export, while the
-workers keep encoding.
+CAD files. The training graph files are built afterwards from the merged dataset with
+DatasetLoader.build_training_files(create_embedding_model()).
 """
 import pathlib
 import random
@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 from hoops_ai.cadaccess import HOOPSLoader
 from hoops_ai.cadencoder.encode_cad_data import encode_cad_data
-from hoops_ai.flowmanager import GraphExport, flowtask
+from hoops_ai.flowmanager import flowtask
 from hoops_ai.ml.EXPERIMENTAL.embedding_encoding import EmbeddingEncodingConfig
 from hoops_ai.storage import CADFileRetriever, DataStorage, LocalStorageProvider
 
@@ -66,7 +66,7 @@ def encode_data_for_ml_training(cad_file: str, cad_loader: HOOPSLoader, storage:
 
 
 def create_embedding_model() -> "EmbeddingFlowModel":
-    """Build the flow model that writes the graph files. Runs in the main process only."""
+    """Build the flow model that writes the graph files. Keep it out of the encoding workers."""
     from hoops_ai.ml.EXPERIMENTAL import EmbeddingFlowModel  # loads torch, so keep it out of the workers
 
     flow_dir = flows_outputdir / "flows" / flow_name
@@ -75,6 +75,3 @@ def create_embedding_model() -> "EmbeddingFlowModel":
         log_file=str(flow_dir / "flow.log"),
         **ENCODING.model_kwargs(),
     )
-
-
-graph_export = GraphExport(flow_model_factory=create_embedding_model)
