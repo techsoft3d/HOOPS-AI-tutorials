@@ -4,6 +4,8 @@
 
 see release notes here: https://docs.techsoft3d.com/hoops/ai/resources/release_notes/index.html
 
+last webinar June 18th, 2026: https://www.youtube.com/watch?si=MFckUkGPYMNBwI2o&v=8m-aFnqC-NI&feature=youtu.be
+
 # Documentation
 
 visit our official documentation here: https://docs.techsoft3d.com/hoops/ai/
@@ -46,8 +48,9 @@ Proceed through each notebook in order, running the cells interactively.
 ```bash
 hoops_ai_tutorials/
 │
-├── notebooks/         # Jupyter notebooks for each tutorial
-├── packages/          # Downloaded binary assets (unzipped before accesing them)
+├── embeddings_pipeline/  # Geometry Retrieval layer
+├── notebooks/            # ML foundation
+├── packages/             # Downloaded binary assets (unzipped before accesing them)
 └── README.md
 |___ ...
 ```
