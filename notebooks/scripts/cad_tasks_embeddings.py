@@ -15,8 +15,9 @@ from hoops_ai.storage.datasetstorage.schema_builder import SchemaBuilder
 from hoops_ai.storage.label_storage import LabelStorage
 from hoops_ai.storage.helpers import generate_unique_id_from_path
 
-from hoops_ai.storage import PyGGraphStoreHandler
+from hoops_ai.cadencoder.encode_cad_data import encode_cad_data
 from hoops_ai.ml.EXPERIMENTAL import EmbeddingFlowModel
+from hoops_ai.ml.EXPERIMENTAL.embedding_encoding import EmbeddingEncodingConfig
 import pathlib
 
 license_key = os.environ.get("HOOPS_AI_LICENSE")
@@ -63,8 +64,9 @@ flow_name = get_flow_name()
 EmbeddingModel = EmbeddingFlowModel(result_dir= str(pathlib.Path(flows_outputdir).joinpath("flows").joinpath(flow_name)),
                                      log_file= str(pathlib.Path(flows_outputdir).joinpath("flows").joinpath(flow_name).joinpath("flow.log")) )
 
-
-#graph_storage = PyGGraphStoreHandler()
+# Encoding settings of the embedding model. The workers only encode: the graph files are built from
+# the encoded dataset before training, by DatasetLoader.build_training_files or by FlowTrainer.
+ENCODING = EmbeddingEncodingConfig()
 
 @flowtask.transform(
     name="Extracting CAD ML input for EmbeddingFlowModel",
@@ -76,18 +78,8 @@ def encode_data_for_ml_training(cad_file: str, cad_loader :  HOOPSLoader, storag
     """Logic to prepare data for exploration and machine learning training for the shape-embedding model.
     """
 
-    facecount, edgecount = EmbeddingModel.encode_cad_data(cad_file, cad_loader, storage)
-    
-    graph_storage = PyGGraphStoreHandler()
+    encode_cad_data(ENCODING.to_encode_specifications(), cad_file, cad_loader, storage)
 
-    # graph Bin file
-    item_no_suffix = pathlib.Path(cad_file).with_suffix("")  # Remove the suffix to get the base name
-    hash_id = generate_unique_id_from_path(str(item_no_suffix))
-    graph_output_path = pathlib.Path(flows_outputdir).joinpath("flows", flow_name, "graph_data", f"{hash_id}.pt")  
-    graph_output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    EmbeddingModel.convert_encoded_data_to_graph(storage, graph_storage, str(graph_output_path))
-    
     # Save file-level metadata (will be routed to .infoset)
     storage.save_metadata("Item", str(cad_file))
     storage.save_metadata("source", "FABWAVE")

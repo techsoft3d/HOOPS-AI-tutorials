@@ -18,6 +18,20 @@
           ],
           "dtype": "int32",
           "description": "Simplified part category (5 groups, indexed 1-5)"
+        },
+        "task_C": {
+          "dims": [
+            "part"
+          ],
+          "dtype": "int32",
+          "description": "Simplified part category (5 groups, indexed 0-4)"
+        },
+        "task_D": {
+          "dims": [
+            "part"
+          ],
+          "dtype": "int32",
+          "description": "Simplified part category (5 groups, indexed 0-4)"
         }
       },
       "description": "Label group for ML supervised Tasks"
@@ -34,6 +48,16 @@
           "description": "Original detailed part category name"
         },
         "task_B_description": {
+          "dtype": "str",
+          "required": false,
+          "description": "Simplified part category group name"
+        },
+        "task_C_description": {
+          "dtype": "str",
+          "required": false,
+          "description": "Simplified detailed part category name"
+        },
+        "task_D_description": {
           "dtype": "str",
           "required": false,
           "description": "Simplified part category group name"
