@@ -42,3 +42,7 @@ demo_images.ipynb
 *.env
 *.vscode
 *.hoops-ai
+
+# Embeddings benchmark scripts and their test: kept locally, not part of the tutorials
+embeddings_pipeline/scripts/benchmark_*.py
+embeddings_pipeline/tests/test_benchmark_*.py
